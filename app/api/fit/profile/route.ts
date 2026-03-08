@@ -22,6 +22,10 @@ export async function POST(req: Request) {
           profile_name: body.label || existingProfile.profile_name || 'New Profile',
           jacketSize: body.categoryDefaults?.jacket?.size || existingProfile.jacketSize,
           trouserSize: body.categoryDefaults?.trouser?.size || existingProfile.trouserSize,
+          fitPreference: body.fitPreference || existingProfile.fitPreference,
+          appointmentDate: body.appointmentDate || existingProfile.appointmentDate,
+          appointmentTime: body.appointmentTime || existingProfile.appointmentTime,
+          technicalSpecs: body.technicalSpecs || existingProfile.technicalSpecs,
         },
       });
     } else {
@@ -32,6 +36,10 @@ export async function POST(req: Request) {
           profile_name: body.label || 'New Profile',
           jacketSize: body.categoryDefaults?.jacket?.size || null,
           trouserSize: body.categoryDefaults?.trouser?.size || null,
+          fitPreference: body.fitPreference || null,
+          appointmentDate: body.appointmentDate || null,
+          appointmentTime: body.appointmentTime || null,
+          technicalSpecs: body.technicalSpecs || null,
         },
       });
     }

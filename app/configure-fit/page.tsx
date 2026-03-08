@@ -169,13 +169,28 @@ function FitConfiguratorContent() {
 
     setIsSaving(true);
     try {
-      // First, create the fit profile
+      // First, create the fit profile with all details
       const profilePayload = {
         email: userEmail,
         label: modalData.profileName || 'New Profile',
         categoryDefaults: {
           jacket: { size: result.jacketSize.toString() },
           trouser: { size: result.trouserSize.toString() }
+        },
+        fitPreference: result.label,
+        appointmentDate: selectedDate,
+        appointmentTime: finalTime || selectedTime,
+        technicalSpecs: {
+          attributes: { 
+            ...attributes, 
+            onLocationAddress,
+            weddingDate,
+            bridalPartyCount,
+            ...modalData 
+          },
+          preferences,
+          jacket: result.jacketSpecs,
+          trouser: result.trouserSpecs,
         }
       };
 
@@ -194,6 +209,7 @@ function FitConfiguratorContent() {
       // Set the fit profile cookie
       document.cookie = `fit_profile_id=${profile.id}; path=/; max-age=31536000`; // 1 year
 
+      // Prepare booking payload with the created profile ID
       const payload = {
         email: userEmail,
         fitPreference: result.label,

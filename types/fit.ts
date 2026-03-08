@@ -21,6 +21,10 @@ export interface FitProfileCreate {
   email?: string;
   label?: string;
   categoryDefaults?: Record<MtmCategory, any>;
+  appointmentDate?: string;
+  appointmentTime?: string;
+  fitPreference?: string;
+  technicalSpecs?: any;
 }
 
 export interface ProductSummary {

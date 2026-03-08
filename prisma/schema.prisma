@@ -24,6 +24,7 @@ model FitProfile {
   jacketSize      String?
   trouserSize     String?
   fitPreference   String?
+  appointmentDate String?
   appointmentTime String?
   technicalSpecs  Json?
   isActive        Boolean          @default(true)
