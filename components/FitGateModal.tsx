@@ -61,6 +61,15 @@ export default function FitGateModal({ isOpen, onClose, productTitle }: FitGateM
   const next = () => setStep(s => s + 1);
   const back = () => setStep(s => s - 1);
 
+  const OptionBtn = ({ field, value, label }: { field: keyof typeof formData, value: string, label?: string }) => (
+    <button 
+      onClick={() => { updateData(field, value); next(); }}
+      className={`w-full text-left p-4 border rounded-xl transition-all hover:bg-zinc-50 ${formData[field] === value ? 'border-black bg-zinc-50 ring-1 ring-black font-medium' : 'border-zinc-200'}`}
+    >
+      {label || value}
+    </button>
+  );
+
   const handleFinalSubmit = () => {
     if (!userEmail) {
       alert("Please enter your email to save your profile.");
