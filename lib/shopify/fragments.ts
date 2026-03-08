@@ -1,16 +1,21 @@
 // lib/shopify/fragments.ts
 
-export const GJ_MTM_FRAGMENT = `
-  fragment GJMetafields on Product {
-    mtm_required: metafield(namespace: "gj", key: "mtm_required") { value }
-    mtm_category: metafield(namespace: "gj", key: "mtm_category") { value }
-    option_set_handle: metafield(namespace: "gj", key: "option_set_handle") { value }
+export const MTM_FRAGMENT = `
+  fragment MTMMeta on Product {
+    mtm_required: metafield(namespace: "totr", key: "mtm_required") { value }
+    mtm_category: metafield(namespace: "totr", key: "mtm_category") { value }
+    option_set_ref: metafield(namespace: "totr", key: "option_set_ref") {
+      reference { ... on Metaobject { id handle type } }
+    }
+    fabric_ref: metafield(namespace: "totr", key: "fabric_ref") {
+      reference { ... on Metaobject { id handle type } }
+    }
   }
 `;
 
-export const METAOBJECT_QUERY = `
-  query GetGJOptionSet($handle: String!) {
-    metaobjectByHandle(handle: { type: "gj_option_set", handle: $handle }) {
+export const OPTIONSET_QUERY = `
+  query GetOptionSet($handle: String!) {
+    metaobjectByHandle(handle: { type: "mtm_option_set", handle: $handle }) {
       fields {
         key
         value

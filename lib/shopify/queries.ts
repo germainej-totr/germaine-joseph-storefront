@@ -1,6 +1,6 @@
 // lib/shopify/queries.ts
 import { shopifyFetch } from "./storefront";
-import { GJ_MTM_FRAGMENT } from "./fragments";
+import { MTM_FRAGMENT, OPTIONSET_QUERY } from "./fragments";
 
 // Define the shape of the Shopify response to satisfy TypeScript
 interface ShopifyProductResponse {
@@ -15,10 +15,10 @@ export async function getProductByHandle(handle: string) {
         title
         handle
         descriptionHtml
-        ...GJMetafields
+        ...MTMMeta
       }
     }
-    ${GJ_MTM_FRAGMENT}
+    ${MTM_FRAGMENT}
   `;
 
   // Explicitly pass the type <ShopifyProductResponse>
