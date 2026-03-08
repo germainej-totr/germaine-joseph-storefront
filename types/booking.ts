@@ -1,7 +1,7 @@
 // types/booking.ts
 
 // Add 'export' here so other files can see this type
-export type ServiceTypeId = 'home_office' | 'showroom' | 'virtual';
+export type ServiceTypeId = 'home_office' | 'showroom' | 'virtual' | 'video_consult' | 'tailor_fitting';
 
 export interface AppointmentRequest {
   serviceType: ServiceTypeId;

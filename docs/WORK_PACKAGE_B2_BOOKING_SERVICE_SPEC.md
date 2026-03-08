@@ -1,8 +1,12 @@
 # Work Package B2: Booking Service Specification
 
 The Booking Service (`BookSvc`) provides backend logic for tailors to offer
-appointments, handle deposits, and manage availability. This spec outlines the
-behaviour, data structures, and integration points.
+appointments, handle deposits, and manage availability. **There is no physical
+storefront — all interactions are remote or at the customer’s location.**
+Garments live in the Shopify catalog solely as placeholders; purchasing an MTM
+item triggers the appointment workflow that starts with a consult and proceeds
+to the fitting process. This spec outlines the behaviour, data structures, and
+integration points.
 
 ## Core Responsibilities
 
