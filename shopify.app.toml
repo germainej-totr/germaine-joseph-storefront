@@ -1,0 +1,17 @@
+client_id = "7aa7fc33554f2ab9d98d497a7ad2ad0b"
+name = "germaine-joseph-clone-dev"
+handle = "germaine-joseph-clone-dev"
+application_url = "https://your-temporary-url.ngrok.io"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+
+[auth]
+# Shopify requires at least one redirect URL for embedded apps
+redirect_urls = [
+  "https://your-temporary-url.ngrok.io/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2024-01"

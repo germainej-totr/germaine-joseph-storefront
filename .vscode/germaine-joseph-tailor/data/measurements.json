@@ -1,0 +1,22 @@
+{
+  "drop_8": {
+    "description": "Slim Fit",
+    "jacket": {
+      "50": { "half_chest": 50, "half_waist": 49.5, "shoulders": 46.0, "back_length": 74.5 },
+      "52": { "half_chest": 52, "half_waist": 51.5, "shoulders": 47.0, "back_length": 75.1 }
+    },
+    "trouser": {
+      "50": { "half_waist": 45.0, "rise": 22.5, "hem": 18.1 },
+      "52": { "half_waist": 47.0, "rise": 22.85, "hem": 18.45 }
+    }
+  },
+  "drop_6": {
+    "description": "Classic Fit",
+    "jacket": {
+      "50": { "half_chest": 50, "half_waist": 54.0, "shoulders": 47.0, "back_length": 76.5 }
+    },
+    "trouser": {
+      "50": { "half_waist": 45.0, "rise": 22.5, "hem": 22.0 }
+    }
+  }
+}

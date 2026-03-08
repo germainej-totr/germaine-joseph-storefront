@@ -1,0 +1,83 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. Fit Profiles: The master identity of the client
+model FitProfile {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  profile_name    String?  // e.g., "Athletic Slim", "Singapore Business"
+  jacketSize      String?
+  trouserSize     String?
+  fitPreference   String?
+  appointmentTime String?
+  technicalSpecs  Json?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  measurements FitMeasurement[]
+  bookings     Booking[]
+  specs        ProductionSpec[]
+}
+
+// 2. Fit Measurements: The versioned anatomical data
+model FitMeasurement {
+  id           String     @id @default(uuid())
+  fitProfileId String
+  fitProfile   FitProfile @relation(fields: [fitProfileId], references: [id], onDelete: Cascade)
+  category     String     
+  data         Json       
+  source       String?    
+  confidence   Int        @default(0)
+  version      Int        @default(1) // <--- Change this from Integer to Int
+  createdAt    DateTime   @default(now())
+}
+
+// 3. Design Sessions: Stores "in-progress" suit designs (Saved Selections)
+model DesignSession {
+  id         String   @id @default(uuid())
+  user_email String?
+  productId  String   // Shopify Product ID
+  selections Json     // e.g., {"lapel": "peak", "fabric": "DRAGO-01"}
+  updatedAt  DateTime @updatedAt
+}
+
+// 4. Bookings & Logistics
+model Booking {
+  id           String      @id @default(uuid())
+  email        String
+  serviceType  String
+  startAt      DateTime
+  location     Json        // address + lat/lng
+  status       String      @default("confirmed")
+  fitProfileId String?
+  fitProfile   FitProfile? @relation(fields: [fitProfileId], references: [id])
+  notes        String?
+
+  // Digital Tailor suggestions
+  suggestedJacket  String?
+  suggestedTrouser String?
+  tailorNotes      String? @db.Text
+
+  createdAt DateTime @default(now())
+}
+
+// 5. Production Specs: The final technical handover to the workshop
+model ProductionSpec {
+  id           String     @id @default(uuid())
+  orderId      String     // Shopify Order ID
+  fitProfileId String
+  fitProfile   FitProfile @relation(fields: [fitProfileId], references: [id])
+  spec         Json       // Immutable snapshot of measurements + design selections
+  status       String     @default("queued")
+  createdAt    DateTime   @default(now())
+}

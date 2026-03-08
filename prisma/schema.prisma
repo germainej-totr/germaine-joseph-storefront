@@ -1,0 +1,120 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --- 1. Customer: Unified Identity ---
+model Customer {
+  id          String       @id @default(uuid())
+  shopifyId   String       @unique
+  email       String       @unique
+  fitProfiles FitProfile[]
+  createdAt   DateTime     @default(now())
+}
+
+// --- 2. Fit Profiles: The master identity of the client ---
+model FitProfile {
+  id              String           @id @default(cuid())
+  email           String           @unique
+  profile_name    String?
+  jacketSize      String?
+  trouserSize     String?
+  fitPreference   String?
+  appointmentTime String?
+  technicalSpecs  Json?
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // Relations
+  customerId      String?
+  customer        Customer?        @relation(fields: [customerId], references: [id])
+  measurements    FitMeasurement[]
+  bookings        Booking[]
+  specs           ProductionSpec[]
+  fittingSessions FittingSession[]
+}
+
+// --- 3. Fitting Sessions: The Unified Tailors Dashboard Data ---
+model FittingSession {
+  id               String        @id @default(cuid())
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  shopifyOrderId   String        @unique
+  productionLine   String
+  jacketBaseBlock  String?
+  trouserBaseBlock String?
+  masterFitType    String?
+  measurements     Json
+  tailorName       String?
+  customerEmail    String
+  status           FittingStatus @default(DRAFT)
+  
+  // Relation back to FitProfile
+  fitProfileId     String?
+  fitProfile       FitProfile?   @relation(fields: [fitProfileId], references: [id])
+
+  @@map("fitting_sessions")
+}
+
+enum FittingStatus {
+  DRAFT
+  ORDERED
+  IN_PRODUCTION
+  SHIPPED
+  DELIVERED
+}
+
+// --- 4. Fit Measurements: Versioned anatomical data ---
+model FitMeasurement {
+  id           String     @id @default(uuid())
+  fitProfileId String
+  fitProfile   FitProfile @relation(fields: [fitProfileId], references: [id], onDelete: Cascade)
+  category     String
+  data         Json
+  source       String?
+  confidence   Int        @default(0)
+  version      Int        @default(1)
+  createdAt    DateTime   @default(now())
+}
+
+// --- 5. Design Sessions: In-progress suit designs ---
+model DesignSession {
+  id         String   @id @default(uuid())
+  user_email String?
+  productId  String
+  selections Json
+  updatedAt  DateTime @updatedAt
+}
+
+// --- 6. Bookings & Logistics ---
+model Booking {
+  id               String      @id @default(uuid())
+  email            String
+  serviceType      String
+  startAt          DateTime
+  location         Json
+  status           String      @default("confirmed")
+  fitProfileId     String?
+  fitProfile       FitProfile? @relation(fields: [fitProfileId], references: [id])
+  notes            String?
+  suggestedJacket  String?
+  suggestedTrouser String?
+  tailorNotes      String?
+  createdAt        DateTime    @default(now())
+}
+
+// --- 7. Production Specs: Technical handover to workshop ---
+model ProductionSpec {
+  id           String     @id @default(uuid())
+  orderId      String
+  fitProfileId String
+  fitProfile   FitProfile @relation(fields: [fitProfileId], references: [id])
+  spec         Json
+  status       String     @default("queued")
+  createdAt    DateTime   @default(now())
+}
