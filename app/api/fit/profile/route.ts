@@ -8,6 +8,12 @@ export async function POST(req: Request) {
   try {
     const body: FitProfileCreate = await req.json();
 
+    console.log('[POST /api/fit/profile] Received body:', JSON.stringify(body, null, 2));
+    console.log('[POST /api/fit/profile] Appointment data:', {
+      appointmentDate: body.appointmentDate,
+      appointmentTime: body.appointmentTime
+    });
+
     // Check if a profile already exists for this email
     const existingProfile = await prisma.fitProfile.findUnique({
       where: { email: body.email }

@@ -89,12 +89,18 @@ function FitConfiguratorContent() {
   const generateTimeSlots = () => {
     const slots = [];
     let currentTime = new Date();
-    currentTime.setHours(9, 0, 0); 
-    const duration = 75; 
-    const buffer = 30;   
+    currentTime.setHours(9, 0, 0);
+    const duration = 75;
+    const buffer = 30;
 
     for (let i = 0; i < 6; i++) {
-      const timeString = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      // Generate time in 12-hour format with AM/PM
+      const hours = currentTime.getHours();
+      const minutes = currentTime.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12; // Convert 0 to 12 for 12 AM
+      const timeString = `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+
       slots.push(timeString);
       currentTime.setMinutes(currentTime.getMinutes() + duration + buffer);
     }
@@ -154,11 +160,22 @@ function FitConfiguratorContent() {
   };
 
   const confirmForFitting = async (finalTime?: string) => {
+    console.log('[confirmForFitting] Called with finalTime:', finalTime);
+    console.log('[confirmForFitting] Current state - selectedTime:', selectedTime, 'selectedDate:', selectedDate);
+
+    // DEBUG: Show what we're about to submit
+    alert(`Submitting appointment:\nDate: ${selectedDate}\nTime: ${finalTime || selectedTime}`);
+
     const offsiteModes = ['Home', 'Office', 'Location'];
     const isOffsite = offsiteModes.includes(modalData.appointmentMode);
-    
+
     if (!selectedDate) {
         alert("Please select a date for your fitting.");
+        return;
+    }
+
+    if (!selectedTime && !finalTime) {
+        alert("Please select a time slot for your fitting.");
         return;
     }
 
@@ -169,6 +186,17 @@ function FitConfiguratorContent() {
 
     setIsSaving(true);
     try {
+      // Determine the time to use
+      const appointmentTimeValue = finalTime || selectedTime;
+
+      console.log('[confirmForFitting] Submitting:', {
+        email: userEmail,
+        appointmentDate: selectedDate,
+        appointmentTime: appointmentTimeValue,
+        finalTime,
+        selectedTime
+      });
+
       // First, create the fit profile with all details
       const profilePayload = {
         email: userEmail,
@@ -179,7 +207,7 @@ function FitConfiguratorContent() {
         },
         fitPreference: result.label,
         appointmentDate: selectedDate,
-        appointmentTime: finalTime || selectedTime,
+        appointmentTime: appointmentTimeValue,
         technicalSpecs: {
           attributes: { 
             ...attributes, 
