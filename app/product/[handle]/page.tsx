@@ -1,42 +1,18 @@
 import { cookies } from 'next/headers';
-import { shopifyFetch } from '@/lib/shopify';
 
 export default async function ProductPage({ params }: { params: { handle: string } }) {
   const handle = params.handle;
-  const query = `
-    query getProduct($handle: String!) {
-      product(handle: $handle) {
-        id
-        title
-        description
-        metafields(namespace: "mtm", first: 5) {
-          edges {
-            node {
-              key
-              value
-            }
-          }
-        }
-        images(first: 3) {
-          edges { node { url altText } }
-        }
-      }
-    }
-  `;
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/products/${handle}`, {
+    cache: 'no-store',
+  });
+  const json = await res.json();
+  const product = json.product;
 
-  const data = await shopifyFetch({ query, variables: { handle } });
-  const product = data?.data?.product;
+  const mtmRequired = product?.metafields?.mtm_required === "true";
 
-  // determine if MTM required
-  const mtmRequired = product?.metafields.edges.some(
-    (e: any) => e.node.key === 'required' && e.node.value === 'true'
-  );
-
-  // check for existing fit profile cookie
   const cookieStore = cookies();
   const fitProfileId = cookieStore.get('fit_profile_id')?.value;
 
-  // gating
   if (mtmRequired && !fitProfileId) {
     return (
       <div className="p-8">
