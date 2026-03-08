@@ -169,6 +169,31 @@ function FitConfiguratorContent() {
 
     setIsSaving(true);
     try {
+      // First, create the fit profile
+      const profilePayload = {
+        email: userEmail,
+        label: modalData.profileName || 'New Profile',
+        categoryDefaults: {
+          jacket: { size: result.jacketSize.toString() },
+          trouser: { size: result.trouserSize.toString() }
+        }
+      };
+
+      const profileResponse = await fetch('/api/fit/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profilePayload),
+      });
+
+      if (!profileResponse.ok) {
+        throw new Error('Failed to create fit profile');
+      }
+
+      const profile = await profileResponse.json();
+
+      // Set the fit profile cookie
+      document.cookie = `fit_profile_id=${profile.id}; path=/; max-age=31536000`; // 1 year
+
       const payload = {
         email: userEmail,
         fitPreference: result.label,
@@ -187,7 +212,8 @@ function FitConfiguratorContent() {
           preferences,
           jacket: result.jacketSpecs,
           trouser: result.trouserSpecs,
-        }
+        },
+        bookingId: profile.id // Use the new profile ID
       };
 
       const response = await fetch('/api/bookings/update-fit', {

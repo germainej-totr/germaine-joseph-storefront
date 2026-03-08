@@ -1,37 +1,98 @@
-import { cookies } from 'next/headers';
+'use client';
+import { useState, useEffect } from 'react';
+import FitGateModal from '@/components/FitGateModal';
 
-export default async function ProductPage({ params }: { params: { handle: string } }) {
+export default function ProductPage({ params }: { params: { handle: string } }) {
   const handle = params.handle;
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/products/${handle}`, {
-    cache: 'no-store',
-  });
-  const json = await res.json();
-  const product = json.product;
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [mtmRequired, setMtmRequired] = useState(false);
+  const [hasFitProfile, setHasFitProfile] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
-  const mtmRequired = product?.metafields?.mtm_required === "true";
+  useEffect(() => {
+    const fetchProduct = async () => {
+      const res = await fetch(`/api/products/${handle}`);
+      const json = await res.json();
+      setProduct(json.product);
+      const required = json.product?.metafields?.mtm_required === "true";
+      setMtmRequired(required);
 
-  const cookieStore = cookies();
-  const fitProfileId = cookieStore.get('fit_profile_id')?.value;
+      // Check for fit profile cookie
+      const cookies = document.cookie.split(';');
+      const fitProfileCookie = cookies.find(c => c.trim().startsWith('fit_profile_id='));
+      setHasFitProfile(!!fitProfileCookie);
 
-  if (mtmRequired && !fitProfileId) {
-    return (
-      <div className="p-8">
-        <h1 className="text-2xl font-bold">{product.title}</h1>
-        <p className="text-red-600 font-semibold">A fit profile is required before purchasing this item.</p>
-        <div className="mt-4 space-x-4">
-          <a href="/fit/smart" className="px-4 py-2 bg-blue-600 text-white rounded">Smart Fit</a>
-          <a href="/fit/manual" className="px-4 py-2 bg-gray-600 text-white rounded">Manual Entry</a>
-          <a href="/fit/book" className="px-4 py-2 bg-green-600 text-white rounded">Book a Fitting</a>
-        </div>
-      </div>
-    );
+      if (required && !fitProfileCookie) {
+        setShowModal(true);
+      }
+
+      setLoading(false);
+    };
+
+    fetchProduct();
+  }, [handle]);
+
+  const [addingToCart, setAddingToCart] = useState(false);
+
+  const addToCart = async () => {
+    setAddingToCart(true);
+    try {
+      const response = await fetch('/api/cart/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: product.id,
+          variantId: product.variants?.[0]?.id,
+          quantity: 1,
+          fitProfileId: hasFitProfile ? document.cookie.split(';').find(c => c.trim().startsWith('fit_profile_id='))?.split('=')[1] : null
+        }),
+      });
+      if (response.ok) {
+        alert('Added to cart!');
+        // Optionally redirect to cart
+        // window.location.href = '/cart';
+      } else {
+        alert('Failed to add to cart');
+      }
+    } catch (error) {
+      alert('Error adding to cart');
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-8">Loading...</div>;
+  }
+
+  if (!product) {
+    return <div className="p-8">Product not found</div>;
   }
 
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold">{product.title}</h1>
       <p className="text-gray-600 mt-4">{product.description}</p>
-      <p className="text-yellow-600 mt-4">TODO: build configurator component and handle add-to-cart with fit info</p>
+      {!mtmRequired || hasFitProfile ? (
+        <div className="mt-4">
+          <button 
+            onClick={addToCart} 
+            disabled={addingToCart}
+            className="px-4 py-2 bg-black text-white rounded disabled:bg-gray-400"
+          >
+            {addingToCart ? 'Adding...' : 'Add to Cart'}
+          </button>
+        </div>
+      ) : (
+        <p className="text-red-600 font-semibold">A fit profile is required before purchasing this item.</p>
+      )}
+
+      <FitGateModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        productTitle={product.title}
+      />
     </div>
   );
 }
