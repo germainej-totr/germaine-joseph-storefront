@@ -10,8 +10,9 @@ export async function POST(req: Request) {
     const created = await prisma.fitProfile.create({
       data: {
         email: body.email,
-        label: body.label || 'New Profile',
-        categoryDefaults: body.categoryDefaults || {},
+        profile_name: body.label || 'New Profile',
+        jacketSize: body.categoryDefaults?.jacket?.size || null,
+        trouserSize: body.categoryDefaults?.trouser?.size || null,
       },
     });
     return NextResponse.json(created);
