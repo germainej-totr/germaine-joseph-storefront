@@ -15,3 +15,23 @@ export interface MeasurementSet {
   source: "smart_fit" | "manual" | "tailor_measured";
   version: number;
 }
+
+// API helpers
+export interface FitProfileCreate {
+  email?: string;
+  label?: string;
+  categoryDefaults?: Record<MtmCategory, any>;
+}
+
+export interface ProductSummary {
+  id: string;
+  handle: string;
+  title: string;
+  imageUrl?: string;
+  mtmRequired?: boolean;
+}
+
+export interface ProductDetail extends ProductSummary {
+  description?: string;
+  metafields?: Record<string, any>;
+}

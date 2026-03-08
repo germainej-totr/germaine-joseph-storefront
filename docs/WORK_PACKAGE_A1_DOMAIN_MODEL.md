@@ -159,10 +159,10 @@ Storefront API. They drive the MTM gating logic and customization options.
 
 | namespace.key              | type    | description |
 |---------------------------|---------|-------------|
-| `mtm.required`            | `boolean` | Marks a product as made‑to‑measure. Value: `true` for MTM categories. |
-| `mtm.category`            | `single_line_text_field` | MTM category name (e.g. "Business Suit"). Used for fit/booking routing. |
-| `mtm.base_block`          | `single_line_text_field` | Identifier for base pattern used in production. |
-| `mtm.customization_schema`| `json`  | Full metadata object containing available customisation options (lapels, vents, linings, etc.). |
+| `gjc.mtm_required`            | `boolean` | Marks a product as made‑to‑measure. Value: `true` for MTM categories. |
+| `gjc.mtm_category`            | `single_line_text_field` | MTM category name (e.g. "Business Suit"). Used for fit/booking routing. |
+| `gjc.mtm_base_block`          | `single_line_text_field` | Identifier for base pattern used in production. |
+| `gjc.mtm_customization_schema`| `json`  | Full metadata object containing available customisation options (lapels, vents, linings, etc.). |
 
 ### Collection Metafields
 

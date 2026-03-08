@@ -23,6 +23,14 @@ export interface GJChoice {
   priceDelta?: number;
 }
 
+// immutable snapshot attached to cart line item
+export interface MtmSpec {
+  category: MtmCategory;
+  fabricCode?: string;
+  options: Record<string, any>;
+  measurements: Record<string, number>;
+  notes?: string;
+}
 export interface GJFabric {
   fabricCode: string;
   mill: string;
