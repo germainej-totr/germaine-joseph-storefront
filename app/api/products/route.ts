@@ -27,13 +27,18 @@ export async function GET(req: Request) {
 
     const response = await shopifyFetch({ query, variables: { first } });
     
+    console.log('[/api/products] shopifyFetch response type:', typeof response);
+    console.log('[/api/products] shopifyFetch response:', JSON.stringify(response, null, 2).slice(0, 500));
+    
     if (!response) {
       console.error('[/api/products] shopifyFetch returned null');
       return NextResponse.json({ products: [], error: 'Failed to fetch products' }, { status: 500 });
     }
 
     const data = response.data || response;
+    console.log('[/api/products] extracted data:', JSON.stringify(data, null, 2).slice(0, 500));
     const edges = data?.products?.edges || [];
+    console.log('[/api/products] edges count:', edges.length);
     
     const products: ProductSummary[] = edges.map((e: any) => {
       const p = e.node;
