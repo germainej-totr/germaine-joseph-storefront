@@ -167,12 +167,12 @@ export default function FitGateModal({ isOpen, onClose, productTitle }: FitGateM
           {step === 11 && (
             <div className="space-y-2 overflow-y-auto pr-2 max-h-[450px]">
               <h2 className="text-xl font-serif mb-4">Production Timeline</h2>
-              <OptionBtn field="timeline_urgency" value="5_days" label="5 Days (RLP Priority Rush + Surcharge)" />
-              <OptionBtn field="timeline_urgency" value="7_days" label="7 Days (RLP Priority Rush + Surcharge)" />
-              <OptionBtn field="timeline_urgency" value="8_days" label="8 Days (BLP Express + Surcharge)" />
-              <OptionBtn field="timeline_urgency" value="14_days" label="14 Days (RLP Express)" />
-              <OptionBtn field="timeline_urgency" value="3_weeks" label="3 Weeks (Standard)" />
-              <OptionBtn field="timeline_urgency" value="Flexible" label="Flexible" />
+              <OptionBtn field="timeline_urgency" value="5_days" label="5 Days (RLP Priority Rush + Surcharge)" formData={formData} updateData={updateData} next={next} />
+              <OptionBtn field="timeline_urgency" value="7_days" label="7 Days (RLP Priority Rush + Surcharge)" formData={formData} updateData={updateData} next={next} />
+              <OptionBtn field="timeline_urgency" value="8_days" label="8 Days (BLP Express + Surcharge)" formData={formData} updateData={updateData} next={next} />
+              <OptionBtn field="timeline_urgency" value="14_days" label="14 Days (RLP Express)" formData={formData} updateData={updateData} next={next} />
+              <OptionBtn field="timeline_urgency" value="3_weeks" label="3 Weeks (Standard)" formData={formData} updateData={updateData} next={next} />
+              <OptionBtn field="timeline_urgency" value="Flexible" label="Flexible" formData={formData} updateData={updateData} next={next} />
             </div>
           )}
 
