@@ -16,8 +16,8 @@ export async function GET(req: Request) {
               handle
               title
               images(first: 1) { edges { node { url altText } } }
-              metafields(namespace: "gjc", first: 2) {
-                edges { node { key value } }
+              mtmRequired: metafield(namespace: "gjc", key: "mtm_required") {
+                value
               }
             }
           }
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
         handle: p.handle,
         title: p.title,
         imageUrl: p.images?.edges[0]?.node.url,
-        mtmRequired: p.metafields?.edges.some((m: any) => m.node.key === 'mtm_required' && m.node.value === 'true') || false,
+        mtmRequired: p.mtmRequired?.value === 'true',
       };
     });
 
