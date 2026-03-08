@@ -136,14 +136,14 @@ export default function FitGateModal({ isOpen, onClose, productTitle }: FitGateM
             </div>
           )}
 
-          {step === 2 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Body Build</h2>{['Slim', 'Athletic', 'Average', 'Broad'].map(v => <OptionBtn key={v} field="body_build" value={v} />)}</div>}
-          {step === 3 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Shoulder Slope</h2>{['Flat', 'Average', 'Sloped'].map(v => <OptionBtn key={v} field="shoulder_slope" value={v} />)}</div>}
-          {step === 4 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Chest Profile</h2>{['Flat', 'Average', 'Prominent'].map(v => <OptionBtn key={v} field="chest_profile" value={v} />)}</div>}
-          {step === 5 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Stomach Profile</h2>{['Flat', 'Average', 'Rounded'].map(v => <OptionBtn key={v} field="stomach_profile" value={v} />)}</div>}
-          {step === 6 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Standing Posture</h2>{['Stooped', 'Neutral', 'Erect'].map(v => <OptionBtn key={v} field="standing_posture" value={v} />)}</div>}
-          {step === 7 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Seat Shape</h2>{['Flat', 'Average', 'Large'].map(v => <OptionBtn key={v} field="seat_shape" value={v} />)}</div>}
-          {step === 8 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Fit Preference</h2>{['Slim', 'Tailored', 'Relaxed', 'Classic'].map(v => <OptionBtn key={v} field="fit_preference" value={v} />)}</div>}
-          {step === 9 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Primary Use Case</h2>{['Business', 'Wedding', 'Formal Event', 'Casual'].map(v => <OptionBtn key={v} field="primary_use_case" value={v} />)}</div>}
+          {step === 2 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Body Build</h2>{['Slim', 'Athletic', 'Average', 'Broad'].map(v => <OptionBtn key={v} field="body_build" value={v} formData={formData} updateData={updateData} next={next} />)}</div>}
+          {step === 3 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Shoulder Slope</h2>{['Flat', 'Average', 'Sloped'].map(v => <OptionBtn key={v} field="shoulder_slope" value={v} formData={formData} updateData={updateData} next={next} />)}</div>}
+          {step === 4 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Chest Profile</h2>{['Flat', 'Average', 'Prominent'].map(v => <OptionBtn key={v} field="chest_profile" value={v} formData={formData} updateData={updateData} next={next} />)}</div>}
+          {step === 5 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Stomach Profile</h2>{['Flat', 'Average', 'Rounded'].map(v => <OptionBtn key={v} field="stomach_profile" value={v} formData={formData} updateData={updateData} next={next} />)}</div>}
+          {step === 6 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Standing Posture</h2>{['Stooped', 'Neutral', 'Erect'].map(v => <OptionBtn key={v} field="standing_posture" value={v} formData={formData} updateData={updateData} next={next} />)}</div>}
+          {step === 7 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Seat Shape</h2>{['Flat', 'Average', 'Large'].map(v => <OptionBtn key={v} field="seat_shape" value={v} formData={formData} updateData={updateData} next={next} />)}</div>}
+          {step === 8 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Fit Preference</h2>{['Slim', 'Tailored', 'Relaxed', 'Classic'].map(v => <OptionBtn key={v} field="fit_preference" value={v} formData={formData} updateData={updateData} next={next} />)}</div>}
+          {step === 9 && <div className="space-y-3"><h2 className="text-xl font-serif mb-4">Primary Use Case</h2>{['Business', 'Wedding', 'Formal Event', 'Casual'].map(v => <OptionBtn key={v} field="primary_use_case" value={v} formData={formData} updateData={updateData} next={next} />)}</div>}
           
           {/* Step 10: Appointment Mode - Now using structured array with Studio */}
           {step === 10 && (
