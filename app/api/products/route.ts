@@ -16,9 +16,6 @@ export async function GET(req: Request) {
               handle
               title
               images(first: 1) { edges { node { url altText } } }
-              mtmRequired: metafield(namespace: "gjc", key: "mtm_required") {
-                value
-              }
             }
           }
         }
@@ -47,7 +44,7 @@ export async function GET(req: Request) {
         handle: p.handle,
         title: p.title,
         imageUrl: p.images?.edges[0]?.node.url,
-        mtmRequired: p.mtmRequired?.value === 'true',
+        mtmRequired: false, // Default to false; add metafield filtering once products are displaying
       };
     });
 
