@@ -69,18 +69,14 @@ export default function HomePage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
         {products.map((product: any) => {
-          const node = product.node;
-          const isMTM = node.requiresFit?.value === "true" || node.requiresFit?.value === true;
-          const mtmCategory = node.category?.value || 'Custom';
-          const leadTime = node.leadTime?.value;
-          const price = node.priceRange.minVariantPrice;
+          const isMTM = product.mtmRequired || false;
 
           return (
-            <div key={node.id} className="group flex flex-col border border-zinc-100 rounded-lg overflow-hidden hover:shadow-md transition-all bg-white">
+            <div key={product.id} className="group flex flex-col border border-zinc-100 rounded-lg overflow-hidden hover:shadow-md transition-all bg-white cursor-pointer" onClick={() => openFitGate(product.title)}>
               <div className="aspect-[3/4] overflow-hidden bg-zinc-50">
                 <img 
-                  src={node.images?.edges[0]?.node?.url || 'https://via.placeholder.com/600x800'} 
-                  alt={node.images?.edges[0]?.node?.altText || node.title} 
+                  src={product.imageUrl || 'https://via.placeholder.com/600x800'} 
+                  alt={product.title} 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
               </div>
@@ -88,40 +84,18 @@ export default function HomePage() {
               <div className="p-6 flex flex-col flex-grow">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h2 className="text-lg font-semibold text-zinc-900">{node.title}</h2>
+                    <h2 className="text-lg font-semibold text-zinc-900">{product.title}</h2>
                     <p className="text-sm text-zinc-500 uppercase tracking-widest mt-1">
-                      {isMTM ? `${mtmCategory}` : 'Ready to Wear'}
+                      {isMTM ? 'Custom MTM' : 'Ready to Wear'}
                     </p>
                   </div>
-                  <p className="font-medium text-zinc-900">
-                    {new Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: price.currencyCode,
-                    }).format(parseFloat(price.amount))}
-                  </p>
                 </div>
 
-                <div className="mt-8">
-                  {isMTM ? (
-                    <div className="space-y-3">
-                      <button 
-                        onClick={() => openFitGate(node.title)}
-                        className="w-full bg-zinc-900 text-white py-3 rounded hover:bg-zinc-800 transition-colors font-medium"
-                      >
-                        Configure Your Fit
-                      </button>
-                      {leadTime && (
-                        <p className="text-[11px] text-center text-zinc-400">
-                          Estimated Lead Time: {leadTime} Days
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <button className="w-full border border-zinc-900 text-zinc-900 py-3 rounded hover:bg-zinc-50 transition-colors font-medium">
-                      Add to Bag
-                    </button>
-                  )}
-                </div>
+                <p className="text-sm text-zinc-600 mt-4 flex-grow">Click to explore fit options</p>
+
+                <button className="mt-6 w-full py-2 border border-zinc-900 text-zinc-900 text-sm font-semibold uppercase hover:bg-zinc-900 hover:text-white transition-colors">
+                  {isMTM ? 'Create Fit Profile' : 'View Details'}
+                </button>
               </div>
             </div>
           );
