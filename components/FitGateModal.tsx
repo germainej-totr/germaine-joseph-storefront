@@ -8,25 +8,38 @@ interface FitGateModalProps {
   productTitle: string;
 }
 
+const initialFormData = {
+  height_cm: '',
+  weight_kg: '',
+  body_build: '',
+  shoulder_slope: '',
+  standing_posture: '',
+  chest_profile: '',
+  stomach_profile: '',
+  seat_shape: '',
+  fit_preference: '',
+  primary_use_case: '',
+  appointment_mode: '',
+  timeline_urgency: '',
+  profile_name: ''
+};
+
+type FormDataType = typeof initialFormData;
+
+const OptionBtn = ({ field, value, label, formData, updateData, next }: { field: keyof FormDataType; value: string; label?: string; formData: FormDataType; updateData: (k: keyof FormDataType, v: string) => void; next: () => void }) => (
+  <button 
+    onClick={() => { updateData(field, value); next(); }}
+    className={`w-full text-left p-4 border rounded-xl transition-all hover:bg-zinc-50 ${formData[field] === value ? 'border-black bg-zinc-50 ring-1 ring-black font-medium' : 'border-zinc-200'}`}
+  >
+    {label || value}
+  </button>
+);
+
 export default function FitGateModal({ isOpen, onClose, productTitle }: FitGateModalProps) {
   const [step, setStep] = useState(1);
   const [userEmail, setUserEmail] = useState(''); 
   
-  const [formData, setFormData] = useState({
-    height_cm: '',
-    weight_kg: '',
-    body_build: '',
-    shoulder_slope: '',
-    standing_posture: '',
-    chest_profile: '',
-    stomach_profile: '',
-    seat_shape: '',
-    fit_preference: '', 
-    primary_use_case: '', 
-    appointment_mode: '',
-    timeline_urgency: '', 
-    profile_name: ''
-  });
+  const [formData, setFormData] = useState<FormDataType>(initialFormData);
 
   // Aligned with Regex ^(Studio|Home|Office|Location)$
   const appointmentModes = [
@@ -61,15 +74,6 @@ export default function FitGateModal({ isOpen, onClose, productTitle }: FitGateM
   const next = () => setStep(s => s + 1);
   const back = () => setStep(s => s - 1);
 
-  const OptionBtn = ({ field, value, label }: { field: keyof typeof formData, value: string, label?: string }) => (
-    <button 
-      onClick={() => { updateData(field, value); next(); }}
-      className={`w-full text-left p-4 border rounded-xl transition-all hover:bg-zinc-50 ${formData[field] === value ? 'border-black bg-zinc-50 ring-1 ring-black font-medium' : 'border-zinc-200'}`}
-    >
-      {label || value}
-    </button>
-  );
-
   const handleFinalSubmit = () => {
     if (!userEmail) {
       alert("Please enter your email to save your profile.");
@@ -101,15 +105,6 @@ export default function FitGateModal({ isOpen, onClose, productTitle }: FitGateM
 
     window.location.href = `/configure-fit?${params.toString()}`;
   };
-
-  const OptionBtn = ({ field, value, label }: { field: keyof typeof formData, value: string, label?: string }) => (
-    <button 
-      onClick={() => { updateData(field, value); next(); }}
-      className={`w-full text-left p-4 border rounded-xl transition-all hover:bg-zinc-50 ${formData[field] === value ? 'border-black bg-zinc-50 ring-1 ring-black font-medium' : 'border-zinc-200'}`}
-    >
-      {label || value}
-    </button>
-  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 text-black">
