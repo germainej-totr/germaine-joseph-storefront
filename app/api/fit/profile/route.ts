@@ -6,16 +6,7 @@ const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
   try {
-    console.log('[/api/fit/profile] Received request');
-    const rawBody = await req.text();
-    console.log('[/api/fit/profile] Raw request body:', rawBody);
-
-    if (!rawBody) {
-      return NextResponse.json({ error: 'Empty request body' }, { status: 400 });
-    }
-
-    const body: FitProfileCreate = JSON.parse(rawBody);
-    console.log('[/api/fit/profile] Parsed request body:', body);
+    const body: FitProfileCreate = await req.json();
 
     // Check if a profile already exists for this email
     const existingProfile = await prisma.fitProfile.findUnique({
@@ -25,7 +16,6 @@ export async function POST(req: Request) {
     let profile;
     if (existingProfile) {
       // Update existing profile
-      console.log('[/api/fit/profile] Updating existing profile:', existingProfile.id);
       profile = await prisma.fitProfile.update({
         where: { email: body.email },
         data: {
@@ -36,7 +26,6 @@ export async function POST(req: Request) {
       });
     } else {
       // Create new profile
-      console.log('[/api/fit/profile] Creating new profile');
       profile = await prisma.fitProfile.create({
         data: {
           email: body.email,
@@ -47,10 +36,9 @@ export async function POST(req: Request) {
       });
     }
 
-    console.log('[/api/fit/profile] Profile result:', profile);
     return NextResponse.json(profile);
   } catch (error) {
-    console.error('[/api/fit/profile] Error creating/updating fit profile:', error);
-    return NextResponse.json({ error: 'Failed to create/update profile', details: error.message }, { status: 500 });
+    console.error('Error creating/updating fit profile:', error);
+    return NextResponse.json({ error: 'Failed to create/update profile' }, { status: 500 });
   }
 }
