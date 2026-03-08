@@ -1,32 +1,19 @@
 /**
  * Utility to fetch data from the Shopify Storefront API.
- * Optimized for Next.js 16 Client/Server environments.
- * DEBUG MODE: Enabled
+ * Server-side only - uses non-public credentials.
  */
 
 export async function shopifyFetch({ query, variables = {} }: { query: string; variables?: any }) {
-  // 1. LOUD CALL LOG
-  console.log("🚀 [shopifyFetch] Function initiated");
-  
-  // 2. Variable Mapping
-  const domain = process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN;
-  const accessToken = process.env.NEXT_PUBLIC_SHOPIFY_STOREFRONT_ACCESS_TOKEN;
-  const apiVersion = process.env.NEXT_PUBLIC_SHOPIFY_API_VERSION || '2024-10';
-
-  // 3. LOUD CREDENTIALS LOG
-  console.log("🔑 [shopifyFetch] Credentials Check:", { 
-    domain: domain || "UNDEFINED", 
-    token: accessToken ? "PRESENT (HIDDEN)" : "MISSING",
-    version: apiVersion 
-  });
+  const domain = process.env.SHOPIFY_STORE_DOMAIN;
+  const accessToken = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
+  const apiVersion = process.env.SHOPIFY_API_VERSION || '2025-10';
 
   if (!domain || !accessToken) {
-    console.error("❌ [shopifyFetch] Error: Missing Environment Variables");
+    console.error("❌ [shopifyFetch] Error: Missing Shopify credentials in server environment");
     return null;
   }
 
   const endpoint = `https://${domain}/api/${apiVersion}/graphql.json`;
-  console.log("🌐 [shopifyFetch] Target Endpoint:", endpoint);
 
   try {
     const res = await fetch(endpoint, {
@@ -38,9 +25,6 @@ export async function shopifyFetch({ query, variables = {} }: { query: string; v
       body: JSON.stringify({ query, variables }),
       next: { revalidate: 0 }, 
     });
-
-    // 4. LOUD RESPONSE STATUS LOG
-    console.log("📡 [shopifyFetch] HTTP Status:", res.status, res.statusText);
 
     const json = await res.json();
 

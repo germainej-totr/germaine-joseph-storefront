@@ -1,68 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { shopifyFetch } from '@/lib/shopify';
 import FitGateModal from '@/components/FitGateModal';
 
 export default function HomePage() {
-  // --- HEARTBEAT LOG 1 ---
-  console.log("💓 1. HomePage Component is rendering...");
-
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeProductTitle, setActiveProductTitle] = useState('');
 
   useEffect(() => {
-    // --- HEARTBEAT LOG 2 ---
-    console.log("💓 2. useEffect is triggering...");
-
     async function fetchProducts() {
-      // --- HEARTBEAT LOG 3 ---
-      console.log("💓 3. fetchProducts function is starting...");
-      
       try {
-        const response = await shopifyFetch({
-          query: `{
-            products(first: 10) {
-              edges {
-                node {
-                  id
-                  title
-                  handle
-                  requiresFit: metafield(namespace: "mtm", key: "requires_fit_gate") { value }
-                  category: metafield(namespace: "mtm", key: "mtm_category") { value }
-                  leadTime: metafield(namespace: "mtm", key: "lead_time_days") { value }
-                  images(first: 1) {
-                    edges {
-                      node {
-                        url
-                        altText
-                      }
-                    }
-                  }
-                  priceRange {
-                    minVariantPrice {
-                      amount
-                      currencyCode
-                    }
-                  }
-                }
-              }
-            }
-          }`
-        });
+        // Call server-side API route instead of shopifyFetch directly
+        const response = await fetch('/api/products?first=10');
+        const json = await response.json();
 
-        // --- HEARTBEAT LOG 4 ---
-        console.log("💓 4. shopifyFetch returned response:", response);
-
-        if (response?.data?.products?.edges) {
-          setProducts(response.data.products.edges);
-        } else {
-          console.warn("💓 4b. Response received but no products found.");
+        if (json?.products) {
+          setProducts(json.products);
         }
       } catch (error) {
-        console.error("💓 ERROR inside fetchProducts:", error);
+        console.error("Error fetching products:", error);
       } finally {
         setLoading(false);
       }
