@@ -163,9 +163,6 @@ function FitConfiguratorContent() {
     console.log('[confirmForFitting] Called with finalTime:', finalTime);
     console.log('[confirmForFitting] Current state - selectedTime:', selectedTime, 'selectedDate:', selectedDate);
 
-    // DEBUG: Show what we're about to submit
-    alert(`Submitting appointment:\nDate: ${selectedDate}\nTime: ${finalTime || selectedTime}`);
-
     const offsiteModes = ['Home', 'Office', 'Location'];
     const isOffsite = offsiteModes.includes(modalData.appointmentMode);
 
@@ -450,7 +447,11 @@ function FitConfiguratorContent() {
                     {generateTimeSlots().map((time) => (
                       <button 
                         key={time} 
-                        onClick={() => setSelectedTime(time)} 
+                        onClick={() => {
+                          console.log('[TimeSlot] Clicked time:', time);
+                          setSelectedTime(time);
+                          console.log('[TimeSlot] selectedTime set to:', time);
+                        }}
                         className={`py-4 text-xs font-bold border rounded-sm transition-all ${selectedTime === time ? 'bg-black text-white' : 'bg-white text-zinc-600 hover:border-black'}`}
                       >
                         {time}

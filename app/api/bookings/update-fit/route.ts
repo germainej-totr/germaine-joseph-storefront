@@ -14,7 +14,9 @@ export async function POST(request: Request) {
       jacketSize, 
       trouserSize, 
       technicalSpecs, 
-      bookingId 
+      bookingId,
+      appointmentDate,
+      appointmentTime
     } = data;
 
     // PRESERVED: Your safe access for alert
@@ -36,6 +38,8 @@ export async function POST(request: Request) {
         jacketSize: jacketSize.toString(),
         trouserSize: trouserSize.toString(),
         fitPreference: fitPreference,
+        appointmentDate: appointmentDate,
+        appointmentTime: appointmentTime,
         // PRESERVED: Merging technicalSpecs to ensure no data is overwritten
         technicalSpecs: technicalSpecs, 
       },
