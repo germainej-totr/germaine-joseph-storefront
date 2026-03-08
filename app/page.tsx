@@ -12,12 +12,20 @@ export default function HomePage() {
   useEffect(() => {
     async function fetchProducts() {
       try {
-        // Call server-side API route instead of shopifyFetch directly
         const response = await fetch('/api/products?first=10');
+        
+        if (!response.ok) {
+          console.error(`API error: ${response.status} ${response.statusText}`);
+          setLoading(false);
+          return;
+        }
+
         const json = await response.json();
 
         if (json?.products) {
           setProducts(json.products);
+        } else {
+          console.warn('No products returned:', json);
         }
       } catch (error) {
         console.error("Error fetching products:", error);
