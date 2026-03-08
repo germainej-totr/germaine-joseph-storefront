@@ -15,7 +15,7 @@ export async function GET(req: Request) {
             handle
             title
             images(first: 1) { edges { node { url altText } } }
-            metafields(namespace: "totr", first: 2) {
+            metafields(namespace: "gj", first: 2) {
               edges { node { key value } }
             }
           }
