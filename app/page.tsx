@@ -94,7 +94,7 @@ export default function HomePage() {
                 <p className="text-sm text-zinc-600 mt-4 flex-grow">Click to explore fit options</p>
 
                 <button className="mt-6 w-full py-2 border border-zinc-900 text-zinc-900 text-sm font-semibold uppercase hover:bg-zinc-900 hover:text-white transition-colors">
-                  {isMTM ? 'Create Fit Profile' : 'View Details'}
+                  {isMTM ? 'Create Fit Profile' : 'Configure Your Fit'}
                 </button>
               </div>
             </div>
