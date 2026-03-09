@@ -144,7 +144,7 @@ function FitConfiguratorContent() {
 
   const runDigitalTailor = () => {
     const jSize = Math.round(Number(attributes.chest) / 2);
-    const tSize = Math.round((Number(attributes.waist) / 2) + 5);
+    const tSize = Math.round((Number(attributes.waist) / 2) + 4);
     const jacketSpecs = measurementSpecs[preferences.fitType]?.jacket[jSize.toString()] || null;
     const trouserSpecs = measurementSpecs[preferences.fitType]?.trouser[tSize.toString()] || null;
 
