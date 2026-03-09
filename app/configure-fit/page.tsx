@@ -219,17 +219,24 @@ function FitConfiguratorContent() {
         }
       };
 
+      console.log('[confirmForFitting] Sending profilePayload to /api/fit/profile:', profilePayload);
+
       const profileResponse = await fetch('/api/fit/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(profilePayload),
       });
 
+      console.log('[confirmForFitting] Profile response status:', profileResponse.status, profileResponse.statusText);
+
       if (!profileResponse.ok) {
-        throw new Error('Failed to create fit profile');
+        const errorText = await profileResponse.text();
+        console.error('[confirmForFitting] API error response:', errorText);
+        throw new Error(`Failed to create fit profile: ${profileResponse.status} ${profileResponse.statusText} - ${errorText}`);
       }
 
       const profile = await profileResponse.json();
+      console.log('[confirmForFitting] Profile created successfully:', profile.id);
 
       // Set the fit profile cookie
       document.cookie = `fit_profile_id=${profile.id}; path=/; max-age=31536000`; // 1 year
@@ -278,7 +285,9 @@ function FitConfiguratorContent() {
         window.location.href = `/?success=profile_synced&date=${selectedDate}`;
       }
     } catch (error) {
-      console.error("Submission failed", error);
+      console.error('[confirmForFitting] Submission failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Error submitting profile: ${errorMessage}`);
     } finally {
       setIsSaving(false);
     }
@@ -447,11 +456,7 @@ function FitConfiguratorContent() {
                     {generateTimeSlots().map((time) => (
                       <button 
                         key={time} 
-                        onClick={() => {
-                          console.log('[TimeSlot] Clicked time:', time);
-                          setSelectedTime(time);
-                          console.log('[TimeSlot] selectedTime set to:', time);
-                        }}
+                        onClick={() => setSelectedTime(time)} 
                         className={`py-4 text-xs font-bold border rounded-sm transition-all ${selectedTime === time ? 'bg-black text-white' : 'bg-white text-zinc-600 hover:border-black'}`}
                       >
                         {time}

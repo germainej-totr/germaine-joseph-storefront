@@ -53,6 +53,10 @@ export async function POST(req: Request) {
     return NextResponse.json(profile);
   } catch (error) {
     console.error('Error creating/updating fit profile:', error);
-    return NextResponse.json({ error: 'Failed to create/update profile' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json(
+      { error: 'Failed to create/update profile', details: errorMessage }, 
+      { status: 500 }
+    );
   }
 }
