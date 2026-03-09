@@ -163,6 +163,12 @@ function FitConfiguratorContent() {
     console.log('[confirmForFitting] Called with finalTime:', finalTime);
     console.log('[confirmForFitting] Current state - selectedTime:', selectedTime, 'selectedDate:', selectedDate);
 
+    // Validate email
+    if (!userEmail || !userEmail.includes('@')) {
+      alert("Please provide a valid email address to proceed.");
+      return;
+    }
+
     const offsiteModes = ['Home', 'Office', 'Location'];
     const isOffsite = offsiteModes.includes(modalData.appointmentMode);
 
@@ -183,6 +189,15 @@ function FitConfiguratorContent() {
 
     setIsSaving(true);
     try {
+      // Validate all required data
+      if (!result) {
+        throw new Error('Fit profile data is missing. Please complete the digital tailor step.');
+      }
+      
+      if (!result.jacketSize || !result.trouserSize) {
+        throw new Error('Jacket or trouser size is missing from the profile.');
+      }
+
       // Determine the time to use
       const appointmentTimeValue = finalTime || selectedTime;
 
