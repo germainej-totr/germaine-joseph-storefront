@@ -1,12 +1,23 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { FitProfile } from '@/types/fit';
 
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
   // TODO: fetch profile from DB
-  const profile: FitProfile = { id, label: 'Sample', categoryDefaults: {} };
+  const profile: FitProfile = {
+    id,
+    label: 'Sample',
+    categoryDefaults: {
+      suit: {},
+      shirt: {},
+      trouser: {},
+      overcoat: {},
+      blazer: {},
+      vest: {},
+    },
+  };
   return NextResponse.json(profile);
 }

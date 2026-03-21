@@ -2,12 +2,19 @@
 import { getMeasurementGuide } from '@/lib/shopify-admin';
 import SmartFitForm from '@/components/tailor/SmartFitForm';
 
+export const dynamic = 'force-dynamic';
+
 export default async function JacketFittingPage() {
-  // 1. Fetch the technical rules from Shopify
-  const guide = await getMeasurementGuide('jacket');
-  
+  // 1. Fetch technical rules at request time to avoid build-time Shopify dependency failures.
+  let guide: Awaited<ReturnType<typeof getMeasurementGuide>> | null = null;
+  try {
+    guide = await getMeasurementGuide('jacket');
+  } catch {
+    guide = null;
+  }
+
   // 2. Mock User (In production, get this from your Auth session)
-  const userEmail = "client@example.com"; 
+  const userEmail = "client@example.com";
 
   if (!guide) {
     return <div className="p-10 text-stone-500">Loading Maison rules...</div>;

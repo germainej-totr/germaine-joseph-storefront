@@ -1,60 +1,159 @@
 'use client';
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle, Calendar, ArrowRight, Loader2, Ruler, MapPin, Users, Heart, Lock, Unlock, Clock } from 'lucide-react';
+import { Calendar, Loader2, Ruler, MapPin, Users, Heart, Lock, Unlock, Clock } from 'lucide-react';
 import { sendOffsiteAlert } from '@/app/actions/sendOffsiteAlert';
+import { useFitHandoff } from '@/lib/trouser/useFitHandoff';
+import { buildCanonicalTrouserMtmPayload } from '@/lib/trouser/TrouserMtmPayload';
+import { addTrouserToCart } from '@/lib/shopify/ShopifyTrouserAddToCartBridge';
 
 // THE SOURCE OF TRUTH: Data for exact block specifications
 const measurementSpecs: any = {
-  "drop_8": {
-    "jacket": {
-      "46": { "back_length": 73.3, "shoulders": 44.0, "half_waist": 45.5 },
-      "48": { "back_length": 73.9, "shoulders": 45.0, "half_waist": 47.5 },
-      "50": { "back_length": 74.5, "shoulders": 46.0, "half_waist": 49.5 },
-      "52": { "back_length": 75.1, "shoulders": 47.0, "half_waist": 51.5 },
-      "54": { "back_length": 75.7, "shoulders": 48.0, "half_waist": 53.6 }
+  drop_8: {
+    jacket: {
+      '46': { back_length: 73.3, shoulders: 44.0, half_waist: 45.5 },
+      '48': { back_length: 73.9, shoulders: 45.0, half_waist: 47.5 },
+      '50': { back_length: 74.5, shoulders: 46.0, half_waist: 49.5 },
+      '52': { back_length: 75.1, shoulders: 47.0, half_waist: 51.5 },
+      '54': { back_length: 75.7, shoulders: 48.0, half_waist: 53.6 },
     },
-    "trouser": {
-      "46": { "half_waist": 41.0, "rise": 17.8, "hem": 18.4 },
-      "48": { "half_waist": 43.0, "rise": 18.1, "hem": 18.7 },
-      "50": { "half_waist": 45.0, "rise": 18.5, "hem": 19.0 },
-      "52": { "half_waist": 47.0, "rise": 18.8, "hem": 19.3 },
-      "54": { "half_waist": 49.0, "rise": 19.5, "hem": 19.6 }
-    }
+    trouser: {
+      '46': { half_waist: 41.0, rise: 17.8, hem: 18.4 },
+      '48': { half_waist: 43.0, rise: 18.1, hem: 18.7 },
+      '50': { half_waist: 45.0, rise: 18.5, hem: 19.0 },
+      '52': { half_waist: 47.0, rise: 18.8, hem: 19.3 },
+      '54': { half_waist: 49.0, rise: 19.5, hem: 19.6 },
+    },
   },
-  "drop_7": {
-    "jacket": {
-      "48": { "back_length": 73.9, "shoulders": 45.5, "half_waist": 50.0 },
-      "50": { "back_length": 74.5, "shoulders": 46.5, "half_waist": 52.0 },
-      "52": { "back_length": 75.1, "shoulders": 47.5, "half_waist": 54.0 }
+  drop_7: {
+    jacket: {
+      '48': { back_length: 73.9, shoulders: 45.5, half_waist: 50.0 },
+      '50': { back_length: 74.5, shoulders: 46.5, half_waist: 52.0 },
+      '52': { back_length: 75.1, shoulders: 47.5, half_waist: 54.0 },
     },
-    "trouser": {
-      "48": { "half_waist": 43.0, "rise": 19.1, "hem": 20.7 },
-      "50": { "half_waist": 45.0, "rise": 19.5, "hem": 21.0 },
-      "52": { "half_waist": 47.0, "rise": 19.8, "hem": 21.3 }
-    }
+    trouser: {
+      '48': { half_waist: 43.0, rise: 19.1, hem: 20.7 },
+      '50': { half_waist: 45.0, rise: 19.5, hem: 21.0 },
+      '52': { half_waist: 47.0, rise: 19.8, hem: 21.3 },
+    },
   },
-  "drop_6": {
-    "jacket": {
-      "50": { "back_length": 76.5, "shoulders": 47.0, "half_waist": 54.0 },
-      "52": { "back_length": 77.1, "shoulders": 48.0, "half_waist": 56.0 },
-      "54": { "back_length": 77.7, "shoulders": 49.0, "half_waist": 58.1 }
+  drop_6: {
+    jacket: {
+      '50': { back_length: 76.5, shoulders: 47.0, half_waist: 54.0 },
+      '52': { back_length: 77.1, shoulders: 48.0, half_waist: 56.0 },
+      '54': { back_length: 77.7, shoulders: 49.0, half_waist: 58.1 },
     },
-    "trouser": {
-      "50": { "half_waist": 45.0, "rise": 22.5, "hem": 22.0 },
-      "52": { "half_waist": 47.0, "rise": 22.8, "hem": 22.3 },
-      "54": { "half_waist": 49.0, "rise": 23.5, "hem": 22.6 }
-    }
-  }
+    trouser: {
+      '50': { half_waist: 45.0, rise: 22.5, hem: 22.0 },
+      '52': { half_waist: 47.0, rise: 22.8, hem: 22.3 },
+      '54': { half_waist: 49.0, rise: 23.5, hem: 22.6 },
+    },
+  },
 };
+
+const timelineProductionDays: Record<string, number> = {
+  '5_days': 5,
+  '7_days': 7,
+  '8_days': 8,
+  '14_days': 14,
+  '3_weeks': 15,
+  Flexible: 0,
+};
+
+const logisticsDaysInternationalExpress = 7;
+
+const toDateOnly = (value: string) => {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const easterSunday = (year: number) => {
+  // Gregorian computus for Easter Sunday.
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
+};
+
+const italianHolidayKeys = (year: number) => {
+  const easter = easterSunday(year);
+  const easterMonday = new Date(easter);
+  easterMonday.setDate(easterMonday.getDate() + 1);
+
+  const fixed = [
+    `${year}-01-01`,
+    `${year}-01-06`,
+    `${year}-04-25`,
+    `${year}-05-01`,
+    `${year}-06-02`,
+    `${year}-08-15`,
+    `${year}-11-01`,
+    `${year}-12-08`,
+    `${year}-12-25`,
+    `${year}-12-26`,
+  ];
+
+  const easterMondayKey = `${year}-${String(easterMonday.getMonth() + 1).padStart(2, '0')}-${String(easterMonday.getDate()).padStart(2, '0')}`;
+  return new Set([...fixed, easterMondayKey]);
+};
+
+const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const isItalianProductionDay = (date: Date) => {
+  const day = date.getDay();
+  const isWeekend = day === 0 || day === 6;
+  if (isWeekend) return false;
+
+  // Italian Summer Holiday shutdown: first 3 weeks of August.
+  const isAugustShutdown = date.getMonth() === 7 && date.getDate() <= 21;
+  if (isAugustShutdown) return false;
+
+  const holidays = italianHolidayKeys(date.getFullYear());
+  return !holidays.has(dateKey(date));
+};
+
+const countProductionDaysBetween = (startExclusive: Date, endExclusive: Date) => {
+  const cursor = new Date(startExclusive);
+  cursor.setDate(cursor.getDate() + 1);
+
+  let count = 0;
+  while (cursor < endExclusive) {
+    if (isItalianProductionDay(cursor)) {
+      count += 1;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return count;
+};
+
+const formatYmd = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 function FitConfiguratorContent() {
   const searchParams = useSearchParams();
+  const {
+    snapshot: trouserDesignSnapshot,
+    source: trouserDesignSource,
+    requiresTrouserRedirect,
+  } = useFitHandoff(searchParams);
   const [step, setStep] = useState(1);
   const [userEmail, setUserEmail] = useState('');
   const [isAutoFilled, setIsAutoFilled] = useState(false);
-  
-  const [selectedDate, setSelectedDate] = useState(''); // NEW: Appointment Date
+
+  const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [onLocationAddress, setOnLocationAddress] = useState('');
   const [weddingDate, setWeddingDate] = useState('');
@@ -65,45 +164,120 @@ function FitConfiguratorContent() {
     appointmentMode: '',
     timeline: '',
     bodyBuild: '',
-    profileName: ''
+    profileName: '',
   });
-  
+
   const [attributes, setAttributes] = useState({
-    chest: '', stomach: '', waist: '', hips: '', height: '', commonIssues: '', notes: ''          
+    chest: '',
+    stomach: '',
+    waist: '',
+    hips: '',
+    height: '',
+    weight: '',
+    shoulderSlope: '',
+    standingPosture: '',
+    chestProfile: '',
+    stomachProfile: '',
+    seatShape: '',
+    commonIssues: '',
+    notes: '',
   });
 
   const [preferences, setPreferences] = useState({
-    fitType: 'drop_8', trouserRise: 'Mid-Rise', trouserBreak: 'No Break', jacketLength: 'Standard'
+    fitType: 'drop_8',
+    trouserRise: 'Mid-Rise',
+    trouserBreak: 'No Break',
+    jacketLength: 'Standard',
   });
 
   const [result, setResult] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Helper for Date Logic
+  const weddingProductionValidation = useMemo(() => {
+    if (modalData.useCase !== 'Wedding') {
+      return { enforce: false, valid: true, message: '', nearestFeasibleDate: '' };
+    }
+
+    const requiredDays = timelineProductionDays[modalData.timeline] ?? 0;
+    if (!requiredDays) {
+      return {
+        enforce: false,
+        valid: true,
+        message: 'Flexible timeline selected. Production schedule will be confirmed by the atelier.',
+        nearestFeasibleDate: '',
+      };
+    }
+
+    const appointment = toDateOnly(selectedDate);
+    const wedding = toDateOnly(weddingDate);
+
+    if (!appointment || !wedding) {
+      return {
+        enforce: true,
+        valid: false,
+        message: 'Select both appointment date and wedding date to validate production feasibility.',
+        nearestFeasibleDate: '',
+      };
+    }
+
+    const availableDays = countProductionDaysBetween(appointment, wedding);
+    const productionDeadline = new Date(wedding);
+    productionDeadline.setDate(productionDeadline.getDate() - logisticsDaysInternationalExpress);
+
+    const availableDaysForProduction = countProductionDaysBetween(appointment, productionDeadline);
+    const valid = availableDaysForProduction >= requiredDays;
+
+    if (valid) {
+      return {
+        enforce: true,
+        valid: true,
+        message: `Timeline feasible: ${availableDaysForProduction} Italian production days available for production (requires ${requiredDays}) plus ${logisticsDaysInternationalExpress} logistics days (DHL/FedEx/UPS International Express Priority).`,
+        nearestFeasibleDate: '',
+      };
+    }
+
+    // Compute the latest appointment that still allows required production days before logistics starts.
+    const latestAllowedAppointment = new Date(productionDeadline);
+    let subtracted = 0;
+    while (subtracted < requiredDays) {
+      latestAllowedAppointment.setDate(latestAllowedAppointment.getDate() - 1);
+      if (isItalianProductionDay(latestAllowedAppointment)) {
+        subtracted += 1;
+      }
+    }
+
+    const nearestFeasibleDate = formatYmd(latestAllowedAppointment);
+
+    return {
+      enforce: true,
+      valid: false,
+      message: `Selected timeline is not feasible: ${availableDaysForProduction} Italian production days available, but ${requiredDays} are required, plus ${logisticsDaysInternationalExpress} logistics days are mandatory for international express shipping (DHL/FedEx/UPS). Earliest feasible appointment date is ${nearestFeasibleDate} (or earlier). Production runs Monday-Friday only, excluding Italian public holidays and 1-21 August shutdown.`,
+      nearestFeasibleDate,
+    };
+  }, [modalData.timeline, modalData.useCase, selectedDate, weddingDate]);
+
   const getMinBookingDate = () => {
     const date = new Date();
-    date.setDate(date.getDate() + 2); // 48h lead time
+    date.setDate(date.getDate() + 2);
     return date.toISOString().split('T')[0];
   };
 
   const generateTimeSlots = () => {
-    const slots = [];
-    let currentTime = new Date();
-    currentTime.setHours(9, 0, 0);
+    const slots: string[] = [];
+    const currentTime = new Date();
+    currentTime.setHours(9, 0, 0, 0);
     const duration = 75;
     const buffer = 30;
 
     for (let i = 0; i < 6; i++) {
-      // Generate time in 12-hour format with AM/PM
       const hours = currentTime.getHours();
       const minutes = currentTime.getMinutes();
       const ampm = hours >= 12 ? 'PM' : 'AM';
-      const displayHours = hours % 12 || 12; // Convert 0 to 12 for 12 AM
-      const timeString = `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
-
-      slots.push(timeString);
+      const displayHours = hours % 12 || 12;
+      slots.push(`${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`);
       currentTime.setMinutes(currentTime.getMinutes() + duration + buffer);
     }
+
     return slots;
   };
 
@@ -111,31 +285,38 @@ function FitConfiguratorContent() {
     const email = searchParams.get('email');
     const useCase = searchParams.get('primaryUseCase');
     const mode = searchParams.get('appointmentMode');
-    
+
     if (email) {
-        setUserEmail(email);
-        setIsAutoFilled(true);
+      setUserEmail(email);
+      setIsAutoFilled(true);
     }
-    
+
     setModalData({
       useCase: useCase || '',
-      appointmentMode: mode || 'Studio', 
+      appointmentMode: mode || 'Studio',
       timeline: searchParams.get('productionTimeline') || '',
       bodyBuild: searchParams.get('bodyBuild') || '',
-      profileName: searchParams.get('profileName') || 'New Bespoke Profile'
+      profileName: searchParams.get('profileName') || 'New Bespoke Profile',
     });
-    
-    setAttributes(prev => ({
+
+    setAttributes((prev) => ({
       ...prev,
       commonIssues: searchParams.get('issues') || '',
       notes: searchParams.get('notes') || '',
-      height: searchParams.get('height') || ''
+      // Keep chest/waist/stomach/hips manual in this step, but carry FitGate anatomy metadata.
+      height: searchParams.get('height') || prev.height,
+      weight: searchParams.get('weight') || prev.weight,
+      shoulderSlope: searchParams.get('shoulderSlope') || prev.shoulderSlope,
+      standingPosture: searchParams.get('standingPosture') || prev.standingPosture,
+      chestProfile: searchParams.get('chestProfile') || prev.chestProfile,
+      stomachProfile: searchParams.get('stomachProfile') || prev.stomachProfile,
+      seatShape: searchParams.get('seatShape') || prev.seatShape,
     }));
   }, [searchParams]);
 
   const handlePhysicalSubmit = () => {
     if (!attributes.chest || !attributes.stomach || !attributes.waist || !attributes.hips || !userEmail) {
-      alert("Please complete all physical measurements and email to proceed.");
+      alert('Please complete all physical measurements and email to proceed.');
       return;
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -143,29 +324,70 @@ function FitConfiguratorContent() {
   };
 
   const runDigitalTailor = () => {
-    const jSize = Math.round(Number(attributes.chest) / 2);
-    const tSize = Math.round((Number(attributes.waist) / 2) + 4);
-    const jacketSpecs = measurementSpecs[preferences.fitType]?.jacket[jSize.toString()] || null;
-    const trouserSpecs = measurementSpecs[preferences.fitType]?.trouser[tSize.toString()] || null;
+    const jSizeRaw = Math.round(Number(attributes.chest) / 2);
+    const tSizeRaw = Math.round(Number(attributes.waist) / 2 + 5); // aligned with master tailor logic
+
+    const normalizeToEvenUp = (size: number) => (size % 2 === 0 ? size : size + 1);
+
+    const chooseAvailableSize = (requestedSize: number, table: Record<string, unknown> | undefined) => {
+      const availableSizes = Object.keys(table || {})
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value))
+        .sort((a, b) => a - b);
+
+      if (!availableSizes.length) return null;
+      if (availableSizes.includes(requestedSize)) return requestedSize;
+
+      const nextUp = availableSizes.find((size) => size >= requestedSize);
+      if (nextUp) return nextUp;
+
+      return availableSizes[availableSizes.length - 1] || null;
+    };
+
+    const jacketRequested = normalizeToEvenUp(jSizeRaw);
+    const trouserRequested = normalizeToEvenUp(tSizeRaw);
+
+    const jacketTable = measurementSpecs[preferences.fitType]?.jacket;
+    const trouserTable = measurementSpecs[preferences.fitType]?.trouser;
+
+    const jacketResolvedSize = chooseAvailableSize(jacketRequested, jacketTable);
+    const trouserResolvedSize = chooseAvailableSize(trouserRequested, trouserTable);
+
+    const jacketSpecs = jacketResolvedSize ? jacketTable?.[jacketResolvedSize.toString()] || null : null;
+    const trouserSpecs = trouserResolvedSize ? trouserTable?.[trouserResolvedSize.toString()] || null : null;
+
+    if (!jacketSpecs || !trouserSpecs || !jacketResolvedSize || !trouserResolvedSize) {
+      alert(`No block specs found for this profile (${preferences.fitType}). Please adjust measurements or fit type.`);
+      return;
+    }
+
+    // Give the tailor practical carry sizes around the raw computed recommendation.
+    const jacketCarryLower = normalizeToEvenUp(jSizeRaw) - 2;
+    const jacketCarryUpper = normalizeToEvenUp(jSizeRaw);
+    const trouserCarryLower = normalizeToEvenUp(tSizeRaw) - 2;
+    const trouserCarryUpper = normalizeToEvenUp(tSizeRaw);
 
     setResult({
-      jacketSize: jSize,
-      trouserSize: tSize,
+      jacketSize: jacketResolvedSize,
+      trouserSize: trouserResolvedSize,
       jacketSpecs,
       trouserSpecs,
-      isMismatch: jSize !== tSize,
-      label: preferences.fitType === 'drop_8' ? 'Slim Fit' : preferences.fitType === 'drop_7' ? 'Regular Fit' : 'Classic Fit'
+      isMismatch: jacketResolvedSize !== trouserResolvedSize,
+      jacketRequested,
+      trouserRequested,
+      jacketCarryLower,
+      jacketCarryUpper,
+      trouserCarryLower,
+      trouserCarryUpper,
+      label: preferences.fitType === 'drop_8' ? 'Slim Fit' : preferences.fitType === 'drop_7' ? 'Regular Fit' : 'Classic Fit',
     });
+
     setStep(3);
   };
 
   const confirmForFitting = async (finalTime?: string) => {
-    console.log('[confirmForFitting] Called with finalTime:', finalTime);
-    console.log('[confirmForFitting] Current state - selectedTime:', selectedTime, 'selectedDate:', selectedDate);
-
-    // Validate email
     if (!userEmail || !userEmail.includes('@')) {
-      alert("Please provide a valid email address to proceed.");
+      alert('Please provide a valid email address to proceed.');
       return;
     }
 
@@ -173,68 +395,88 @@ function FitConfiguratorContent() {
     const isOffsite = offsiteModes.includes(modalData.appointmentMode);
 
     if (!selectedDate) {
-        alert("Please select a date for your fitting.");
-        return;
+      alert('Please select a date for your fitting.');
+      return;
     }
 
     if (!selectedTime && !finalTime) {
-        alert("Please select a time slot for your fitting.");
-        return;
+      alert('Please select a time slot for your fitting.');
+      return;
     }
 
     if (isOffsite && !onLocationAddress) {
-        alert("Please provide the fitting address for On-Location service.");
-        return;
+      alert('Please provide the fitting address for On-Location service.');
+      return;
+    }
+
+    if (modalData.useCase === 'Wedding' && !weddingDate) {
+      alert('Please select your wedding date to validate production scheduling.');
+      return;
+    }
+
+    if (modalData.useCase === 'Wedding' && weddingProductionValidation.enforce && !weddingProductionValidation.valid) {
+      alert(weddingProductionValidation.message);
+      return;
     }
 
     setIsSaving(true);
+
     try {
-      // Validate all required data
       if (!result) {
         throw new Error('Fit profile data is missing. Please complete the digital tailor step.');
       }
-      
-      if (!result.jacketSize || !result.trouserSize) {
-        throw new Error('Jacket or trouser size is missing from the profile.');
+
+      if (!result.jacketSize || !result.trouserSize || !result.jacketSpecs || !result.trouserSpecs) {
+        throw new Error('Profile sizing/specification data is incomplete.');
       }
 
-      // Determine the time to use
       const appointmentTimeValue = finalTime || selectedTime;
-
-      console.log('[confirmForFitting] Submitting:', {
+      const canonicalBeforeProfile = buildCanonicalTrouserMtmPayload({
         email: userEmail,
+        fitPreference: result.label,
+        jacketSize: result.jacketSize,
+        trouserSize: result.trouserSize,
         appointmentDate: selectedDate,
         appointmentTime: appointmentTimeValue,
-        finalTime,
-        selectedTime
+        attributes: {
+          ...attributes,
+          onLocationAddress,
+          weddingDate,
+          bridalPartyCount,
+          ...modalData,
+        },
+        preferences,
+        jacketSpecs: result.jacketSpecs,
+        trouserSpecs: result.trouserSpecs,
+        trouserDesign: trouserDesignSnapshot,
       });
 
-      // First, create the fit profile with all details
       const profilePayload = {
         email: userEmail,
         label: modalData.profileName || 'New Profile',
         categoryDefaults: {
           jacket: { size: result.jacketSize.toString() },
-          trouser: { size: result.trouserSize.toString() }
+          trouser: { size: result.trouserSize.toString() },
         },
         fitPreference: result.label,
         appointmentDate: selectedDate,
         appointmentTime: appointmentTimeValue,
         technicalSpecs: {
-          attributes: { 
-            ...attributes, 
+          attributes: {
+            ...attributes,
             onLocationAddress,
             weddingDate,
             bridalPartyCount,
-            ...modalData 
+            ...modalData,
           },
+          trouserDesign: trouserDesignSnapshot,
+          mtmCanonical: canonicalBeforeProfile,
+          cartAttributesSnapshot: canonicalBeforeProfile.lineItemProperties,
           preferences,
           jacket: result.jacketSpecs,
           trouser: result.trouserSpecs,
-        }
+        },
       };
-
-      console.log('[confirmForFitting] Sending profilePayload to /api/fit/profile:', profilePayload);
 
       const profileResponse = await fetch('/api/fit/profile', {
         method: 'POST',
@@ -242,41 +484,66 @@ function FitConfiguratorContent() {
         body: JSON.stringify(profilePayload),
       });
 
-      console.log('[confirmForFitting] Profile response status:', profileResponse.status, profileResponse.statusText);
-
       if (!profileResponse.ok) {
         const errorText = await profileResponse.text();
-        console.error('[confirmForFitting] API error response:', errorText);
         throw new Error(`Failed to create fit profile: ${profileResponse.status} ${profileResponse.statusText} - ${errorText}`);
       }
 
       const profile = await profileResponse.json();
-      console.log('[confirmForFitting] Profile created successfully:', profile.id);
+      const clientTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const clientLocale = Intl.DateTimeFormat().resolvedOptions().locale || 'en-US';
 
-      // Set the fit profile cookie
-      document.cookie = `fit_profile_id=${profile.id}; path=/; max-age=31536000`; // 1 year
+      const canonicalAfterProfile = buildCanonicalTrouserMtmPayload({
+        email: userEmail,
+        fitPreference: result.label,
+        jacketSize: result.jacketSize,
+        trouserSize: result.trouserSize,
+        appointmentDate: selectedDate,
+        appointmentTime: appointmentTimeValue,
+        bookingId: profile.id,
+        attributes: {
+          ...attributes,
+          onLocationAddress,
+          weddingDate,
+          bridalPartyCount,
+          clientTimeZone,
+          clientLocale,
+          ...modalData,
+        },
+        preferences,
+        jacketSpecs: result.jacketSpecs,
+        trouserSpecs: result.trouserSpecs,
+        trouserDesign: trouserDesignSnapshot,
+      });
 
-      // Prepare booking payload with the created profile ID
+      document.cookie = `fit_profile_id=${profile.id}; path=/; max-age=31536000`;
+
       const payload = {
         email: userEmail,
         fitPreference: result.label,
         jacketSize: result.jacketSize,
         trouserSize: result.trouserSize,
         appointmentDate: selectedDate,
-        appointmentTime: finalTime || selectedTime,
+        appointmentTime: appointmentTimeValue,
         technicalSpecs: {
-          attributes: { 
-            ...attributes, 
+          attributes: {
+            ...attributes,
             onLocationAddress,
             weddingDate,
             bridalPartyCount,
-            ...modalData 
+            clientTimeZone,
+            clientLocale,
+            ...modalData,
           },
+          trouserDesign: trouserDesignSnapshot,
+          mtmCanonical: canonicalAfterProfile,
+          cartAttributesSnapshot: canonicalAfterProfile.lineItemProperties,
           preferences,
           jacket: result.jacketSpecs,
           trouser: result.trouserSpecs,
         },
-        bookingId: profile.id // Use the new profile ID
+        cartAttributes: canonicalAfterProfile.lineItemProperties,
+        bookingId: profile.id,
       };
 
       const response = await fetch('/api/bookings/update-fit', {
@@ -285,20 +552,53 @@ function FitConfiguratorContent() {
         body: JSON.stringify(payload),
       });
 
+      if (!response.ok) {
+        const bookingError = await response.text();
+        throw new Error(`Failed to update booking: ${response.status} ${response.statusText} - ${bookingError}`);
+      }
+
       if (isOffsite) {
-        await sendOffsiteAlert({
+        const offsiteResult = await sendOffsiteAlert({
           email: userEmail,
           appointmentMode: modalData.appointmentMode,
           address: onLocationAddress,
           profileName: modalData.profileName,
-          date: selectedDate, // Added date to alert
-          time: finalTime || selectedTime
+          date: selectedDate,
+          time: appointmentTimeValue,
         });
+
+        if (!offsiteResult?.ok) {
+          console.error('[confirmForFitting] Offsite alert failed:', offsiteResult?.error);
+        }
       }
 
-      if (response.ok) {
-        window.location.href = `/?success=profile_synced&date=${selectedDate}`;
+      // Attempt to add configured trouser to Shopify cart with full MTM metadata
+      const variantId = searchParams.get('variantId');
+      if (variantId && canonicalAfterProfile) {
+        try {
+          const cartResult = await addTrouserToCart({
+            variantId,
+            quantity: 1,
+            canonicalPayload: canonicalAfterProfile,
+          });
+
+          if (cartResult.ok) {
+            // Success: redirect to cart or checkout
+            const checkoutUrl = searchParams.get('checkoutRedirectTo') || '/cart';
+            window.location.href = checkoutUrl;
+            return;
+          } else {
+            // Cart add failed: log but continue to confirmation page
+            console.warn('[confirmForFitting] Failed to add to cart:', cartResult.error);
+          }
+        } catch (cartError) {
+          // Cart error: log and continue
+          console.error('[confirmForFitting] Cart exception:', cartError);
+        }
       }
+
+      // Fallback: redirect to home page with success marker
+      window.location.href = `/?success=profile_synced&date=${selectedDate}`;
     } catch (error) {
       console.error('[confirmForFitting] Submission failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -311,57 +611,133 @@ function FitConfiguratorContent() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#FDFDFD] p-4 text-black font-sans">
       <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
-        
         <div className="bg-black p-8 text-center">
           <h1 className="text-white font-serif text-3xl tracking-[0.2em] uppercase">Germaine Joseph</h1>
           <p className="text-zinc-400 text-[10px] mt-2 uppercase tracking-widest">Master Tailor Intake</p>
         </div>
 
         <div className="p-8 md:p-12">
+          {trouserDesignSnapshot && (
+            <div className="mb-6 rounded-xl border border-[#826300]/20 bg-[#F8F5ED] p-5">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#826300]">Your Trouser Design</p>
+                  <p className="text-sm text-zinc-600">
+                    Source: <span className="font-semibold text-zinc-800">{trouserDesignSource}</span> · Option Set{' '}
+                    <span className="font-semibold text-zinc-800">{trouserDesignSnapshot.optionSetVersion}</span>
+                  </p>
+                </div>
+                <p className="text-xs font-semibold text-zinc-700">
+                  Design Upcharge: €{trouserDesignSnapshot.pricing.total.toFixed(2)}
+                </p>
+              </div>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {Object.entries(trouserDesignSnapshot.selections)
+                  .slice(0, 6)
+                  .map(([key, value]) => (
+                    <div key={key} className="rounded-lg bg-white px-3 py-2 text-xs text-zinc-700">
+                      <span className="font-semibold text-zinc-900">{key.replace(/_/g, ' ')}</span>: {value}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {requiresTrouserRedirect && (
+            <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-semibold">We could not recover your trouser design handoff.</p>
+              <p className="mt-1">Please return to the configurator to restore your design before completing fit intake.</p>
+              <button
+                onClick={() => {
+                  window.location.href = '/shop/trouser-demo';
+                }}
+                className="mt-3 rounded-md bg-amber-700 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-amber-800"
+              >
+                Return To Trouser Configurator
+              </button>
+            </div>
+          )}
+
           {step === 1 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
               <div className="text-center mb-8">
                 <h3 className="text-xl font-serif tracking-widest uppercase">Physical Profile</h3>
               </div>
+
               <div className="space-y-1 relative">
                 <div className="flex justify-between items-center mb-1">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Account Email</label>
-                    {isAutoFilled && (
-                        <button onClick={() => setIsAutoFilled(false)} className="text-[9px] text-zinc-300 hover:text-black flex items-center gap-1">
-                            <Unlock size={10}/> Edit
-                        </button>
-                    )}
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Account Email</label>
+                  {isAutoFilled && (
+                    <button onClick={() => setIsAutoFilled(false)} className="text-[9px] text-zinc-300 hover:text-black flex items-center gap-1">
+                      <Unlock size={10} /> Edit
+                    </button>
+                  )}
                 </div>
-                <input 
-                    type="email" 
-                    readOnly={isAutoFilled}
-                    className={`w-full p-4 border-b outline-none transition-all ${isAutoFilled ? "bg-gray-50/80 text-zinc-400 italic" : "bg-gray-50/50"}`} 
-                    value={userEmail} 
-                    onChange={(e)=>setUserEmail(e.target.value)} 
+
+                <input
+                  type="email"
+                  readOnly={isAutoFilled}
+                  className={`w-full p-4 border-b outline-none transition-all ${isAutoFilled ? 'bg-gray-50/80 text-zinc-400 italic' : 'bg-gray-50/50'}`}
+                  value={userEmail}
+                  onChange={(e) => setUserEmail(e.target.value)}
                 />
+
                 {isAutoFilled && <Lock size={12} className="absolute right-4 bottom-5 text-zinc-200" />}
               </div>
+
               <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2"><Ruler size={12}/> Chest (cm)</label>
-                  <input type="number" className="w-full p-4 border-b bg-gray-50/50 outline-none" value={attributes.chest} onChange={(e)=>setAttributes({...attributes, chest: e.target.value})} />
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                    <Ruler size={12} /> Chest (cm)
+                  </label>
+                  <input
+                    type="number"
+                    className="w-full p-4 border-b bg-gray-50/50 outline-none"
+                    value={attributes.chest}
+                    onChange={(e) => setAttributes({ ...attributes, chest: e.target.value })}
+                  />
                 </div>
+
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Stomach (cm)</label>
-                  <input type="number" className="w-full p-4 border-b bg-gray-50/50 outline-none" value={attributes.stomach} onChange={(e)=>setAttributes({...attributes, stomach: e.target.value})} />
+                  <input
+                    type="number"
+                    className="w-full p-4 border-b bg-gray-50/50 outline-none"
+                    value={attributes.stomach}
+                    onChange={(e) => setAttributes({ ...attributes, stomach: e.target.value })}
+                  />
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2"><Ruler size={12}/> Waist (cm)</label>
-                  <input type="number" className="w-full p-4 border-b bg-gray-50/50 outline-none" value={attributes.waist} onChange={(e)=>setAttributes({...attributes, waist: e.target.value})} />
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                    <Ruler size={12} /> Waist (cm)
+                  </label>
+                  <input
+                    type="number"
+                    className="w-full p-4 border-b bg-gray-50/50 outline-none"
+                    value={attributes.waist}
+                    onChange={(e) => setAttributes({ ...attributes, waist: e.target.value })}
+                  />
                 </div>
+
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Hips (cm)</label>
-                  <input type="number" className="w-full p-4 border-b bg-gray-50/50 outline-none" value={attributes.hips} onChange={(e)=>setAttributes({...attributes, hips: e.target.value})} />
+                  <input
+                    type="number"
+                    className="w-full p-4 border-b bg-gray-50/50 outline-none"
+                    value={attributes.hips}
+                    onChange={(e) => setAttributes({ ...attributes, hips: e.target.value })}
+                  />
                 </div>
               </div>
-              <button onClick={handlePhysicalSubmit} className="w-full bg-black text-white py-5 mt-4 rounded-sm font-bold uppercase tracking-widest hover:bg-zinc-900 transition-all">
+
+              <button
+                onClick={handlePhysicalSubmit}
+                className="w-full bg-black text-white py-5 mt-4 rounded-sm font-bold uppercase tracking-widest hover:bg-zinc-900 transition-all"
+              >
                 Configure Style Preferences
               </button>
             </div>
@@ -369,34 +745,55 @@ function FitConfiguratorContent() {
 
           {step === 2 && (
             <div className="space-y-8 animate-in fade-in duration-500">
-              <div className="text-center"><h3 className="text-xl font-serif">Stylistic Configuration</h3></div>
+              <div className="text-center">
+                <h3 className="text-xl font-serif">Stylistic Configuration</h3>
+              </div>
+
               <div className="space-y-4">
                 <label className="text-[10px] font-bold uppercase text-zinc-500 tracking-widest">Silhouette Intent</label>
                 <div className="grid grid-cols-3 gap-3">
-                  {['drop_8', 'drop_7', 'drop_6'].map(d => (
-                    <button key={d} onClick={()=>setPreferences({...preferences, fitType: d})} className={`py-4 text-[10px] tracking-widest border ${preferences.fitType === d ? 'bg-black text-white' : 'border-gray-200 text-gray-400'}`}>
+                  {['drop_8', 'drop_7', 'drop_6'].map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setPreferences({ ...preferences, fitType: d })}
+                      className={`py-4 text-[10px] tracking-widest border ${preferences.fitType === d ? 'bg-black text-white' : 'border-gray-200 text-gray-400'}`}
+                    >
                       {d === 'drop_8' ? 'SLIM' : d === 'drop_7' ? 'REGULAR' : 'CLASSIC'}
                     </button>
                   ))}
                 </div>
               </div>
-              <button onClick={runDigitalTailor} className="w-full bg-black text-white py-5 rounded-sm font-bold uppercase tracking-widest shadow-xl">Generate Digital Profile</button>
+
+              <button onClick={runDigitalTailor} className="w-full bg-black text-white py-5 rounded-sm font-bold uppercase tracking-widest shadow-xl">
+                Generate Digital Profile
+              </button>
             </div>
           )}
 
           {step === 3 && result && (
             <div className="text-center space-y-8 animate-in slide-in-from-bottom-8">
-                <div className="bg-zinc-50 p-10 rounded-2xl border border-zinc-100">
-                   <p className="text-[10px] uppercase tracking-[0.4em] text-zinc-400 mb-6 font-bold">MTM Specification</p>
-                   <div className="flex justify-center items-baseline gap-12 my-8">
-                     <div><p className="text-5xl font-serif">{result.jacketSize}</p><p className="text-[10px] uppercase font-bold text-zinc-500">Jacket</p></div>
-                     <div className="h-12 w-[1px] bg-zinc-200"></div>
-                     <div><p className="text-5xl font-serif">{result.trouserSize}</p><p className="text-[10px] uppercase font-bold text-zinc-500">Trouser</p></div>
-                   </div>
+              <div className="bg-zinc-50 p-10 rounded-2xl border border-zinc-100">
+                <p className="text-[10px] uppercase tracking-[0.4em] text-zinc-400 mb-6 font-bold">MTM Specification</p>
+                <div className="flex justify-center items-baseline gap-12 my-8">
+                  <div>
+                    <p className="text-5xl font-serif">{result.jacketSize}</p>
+                    <p className="text-[10px] uppercase font-bold text-zinc-500">Jacket</p>
+                  </div>
+                  <div className="h-12 w-[1px] bg-zinc-200" />
+                  <div>
+                    <p className="text-5xl font-serif">{result.trouserSize}</p>
+                    <p className="text-[10px] uppercase font-bold text-zinc-500">Trouser</p>
+                  </div>
                 </div>
-                <button onClick={() => setStep(4)} disabled={isSaving} className="w-full bg-black text-white py-6 rounded-sm font-bold uppercase tracking-widest flex items-center justify-center gap-3">
-                  Confirm & Schedule Fitting
-                </button>
+              </div>
+
+              <button
+                onClick={() => setStep(4)}
+                disabled={isSaving}
+                className="w-full bg-black text-white py-6 rounded-sm font-bold uppercase tracking-widest flex items-center justify-center gap-3"
+              >
+                Confirm & Schedule Fitting
+              </button>
             </div>
           )}
 
@@ -410,82 +807,121 @@ function FitConfiguratorContent() {
               {modalData.useCase === 'Wedding' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 bg-zinc-50 rounded-xl border-2 border-black/5">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase text-zinc-500 flex items-center gap-2"><Heart size={12}/> Wedding Date</label>
-                    <input type="date" className="w-full p-3 border rounded-md text-sm" value={weddingDate} onChange={(e)=>setWeddingDate(e.target.value)} />
+                    <label className="text-[10px] font-bold uppercase text-zinc-500 flex items-center gap-2">
+                      <Heart size={12} /> Wedding Date
+                    </label>
+                    <input type="date" className="w-full p-3 border rounded-md text-sm" value={weddingDate} onChange={(e) => setWeddingDate(e.target.value)} />
                   </div>
+
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase text-zinc-500 flex items-center gap-2"><Users size={12}/> Bridal Party Size</label>
-                    <select className="w-full p-3 border rounded-md text-sm" value={bridalPartyCount} onChange={(e)=>setBridalPartyCount(e.target.value)}>
-                      {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>{n} Person{n>1?'s':''}</option>)}
+                    <label className="text-[10px] font-bold uppercase text-zinc-500 flex items-center gap-2">
+                      <Users size={12} /> Bridal Party Size
+                    </label>
+                    <select className="w-full p-3 border rounded-md text-sm" value={bridalPartyCount} onChange={(e) => setBridalPartyCount(e.target.value)}>
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                        <option key={n} value={n}>
+                          {n} Person{n > 1 ? 's' : ''}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
               )}
 
-              {/* LOGISTICS: DATE & LOCATION */}
+              {modalData.useCase === 'Wedding' && (
+                <div
+                  className={`p-4 rounded-xl border text-sm ${
+                    weddingProductionValidation.valid
+                      ? 'bg-green-50 border-green-200 text-green-800'
+                      : 'bg-amber-50 border-amber-200 text-amber-800'
+                  }`}
+                >
+                  <p className="font-semibold uppercase tracking-wider text-[10px] mb-1">Production Feasibility</p>
+                  <p>{weddingProductionValidation.message}</p>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 gap-6">
-                {/* Unified Date Selection */}
                 <div className="p-6 bg-zinc-50 rounded-xl border-2 border-black/5 space-y-3">
-                   <label className="text-[10px] font-bold uppercase text-zinc-500 flex items-center gap-2"><Calendar size={12}/> Appointment Date</label>
-                   <input 
-                      type="date" 
-                      min={getMinBookingDate()}
-                      className="w-full p-4 border rounded-md text-sm bg-white" 
-                      value={selectedDate} 
-                      onChange={(e) => {
-                        setSelectedDate(e.target.value);
-                        setSelectedTime(''); // Reset time when date changes
-                      }} 
-                   />
-                   <p className="text-[9px] text-zinc-400 italic font-medium">* 48-hour minimum coordination lead time required.</p>
+                  <label className="text-[10px] font-bold uppercase text-zinc-500 flex items-center gap-2">
+                    <Calendar size={12} /> Appointment Date
+                  </label>
+                  <input
+                    type="date"
+                    min={getMinBookingDate()}
+                    className="w-full p-4 border rounded-md text-sm bg-white"
+                    value={selectedDate}
+                    onChange={(e) => {
+                      setSelectedDate(e.target.value);
+                      setSelectedTime('');
+                    }}
+                  />
+                  <p className="text-[9px] text-zinc-400 italic font-medium">* 48-hour minimum coordination lead time required.</p>
                 </div>
 
                 {['Home', 'Office', 'Location'].includes(modalData.appointmentMode) ? (
-                    <div className="space-y-2 p-6 bg-zinc-50 rounded-xl border-2 border-black/5">
-                        <label className="text-[10px] font-bold uppercase text-zinc-500 flex items-center gap-2"><MapPin size={12}/> Fitting Location Address</label>
-                        <textarea 
-                            placeholder="Please provide full street address..." 
-                            className="w-full p-3 border rounded-md text-sm min-h-[80px]" 
-                            value={onLocationAddress} 
-                            onChange={(e)=>setOnLocationAddress(e.target.value)}
-                        />
-                    </div>
+                  <div className="space-y-2 p-6 bg-zinc-50 rounded-xl border-2 border-black/5">
+                    <label className="text-[10px] font-bold uppercase text-zinc-500 flex items-center gap-2">
+                      <MapPin size={12} /> Fitting Location Address
+                    </label>
+                    <textarea
+                      placeholder="Please provide full street address..."
+                      className="w-full p-3 border rounded-md text-sm min-h-[80px]"
+                      value={onLocationAddress}
+                      onChange={(e) => setOnLocationAddress(e.target.value)}
+                    />
+                  </div>
                 ) : (
-                    <div className="p-6 bg-zinc-50 rounded-xl border border-zinc-100 flex items-start gap-4">
-                        <div className="p-2 bg-black text-white rounded-lg"><MapPin size={16}/></div>
-                        <div>
-                            <p className="text-[10px] font-bold uppercase text-zinc-500 tracking-widest">Maison Location</p>
-                            <p className="text-sm font-medium mt-1">102 Savile Row, London, W1S 3PB</p>
-                        </div>
+                  <div className="p-6 bg-zinc-50 rounded-xl border border-zinc-100 flex items-start gap-4">
+                    <div className="p-2 bg-black text-white rounded-lg">
+                      <MapPin size={16} />
                     </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase text-zinc-500 tracking-widest">Maison Location</p>
+                      <p className="text-sm font-medium mt-1">102 Savile Row, London, W1S 3PB</p>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              {/* TIME SLOTS: Only active if date is selected */}
-              <div className={`border border-zinc-100 rounded-xl p-6 bg-[#F9F9F9] transition-all duration-500 ${selectedDate ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
+              <div
+                className={`border border-zinc-100 rounded-xl p-6 bg-[#F9F9F9] transition-all duration-500 ${
+                  selectedDate ? 'opacity-100' : 'opacity-30 pointer-events-none'
+                }`}
+              >
                 <div className="flex items-center gap-2 mb-4">
-                    <Clock size={12} className="text-zinc-400" />
-                    <h4 className="text-[10px] uppercase tracking-widest font-bold text-zinc-400">Available Windows</h4>
+                  <Clock size={12} className="text-zinc-400" />
+                  <h4 className="text-[10px] uppercase tracking-widest font-bold text-zinc-400">Available Windows</h4>
                 </div>
+
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {generateTimeSlots().map((time) => (
-                      <button 
-                        key={time} 
-                        onClick={() => setSelectedTime(time)} 
-                        className={`py-4 text-xs font-bold border rounded-sm transition-all ${selectedTime === time ? 'bg-black text-white' : 'bg-white text-zinc-600 hover:border-black'}`}
-                      >
-                        {time}
-                      </button>
-                    ))}
+                  {generateTimeSlots().map((time) => (
+                    <button
+                      key={time}
+                      onClick={() => setSelectedTime(time)}
+                      className={`py-4 text-xs font-bold border rounded-sm transition-all ${
+                        selectedTime === time ? 'bg-black text-white' : 'bg-white text-zinc-600 hover:border-black'
+                      }`}
+                    >
+                      {time}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <button 
-                onClick={() => confirmForFitting(selectedTime)} 
-                disabled={!selectedTime || !selectedDate || isSaving || (['Home', 'Office', 'Location'].includes(modalData.appointmentMode) && !onLocationAddress)} 
+              <button
+                onClick={() => confirmForFitting(selectedTime)}
+                disabled={
+                  !selectedTime ||
+                  !selectedDate ||
+                  isSaving ||
+                  (modalData.useCase === 'Wedding' &&
+                    (!weddingDate || (weddingProductionValidation.enforce && !weddingProductionValidation.valid))) ||
+                  (['Home', 'Office', 'Location'].includes(modalData.appointmentMode) && !onLocationAddress)
+                }
                 className="w-full py-5 bg-black text-white rounded-sm font-bold uppercase tracking-[0.2em] disabled:bg-zinc-200 shadow-xl transition-all"
               >
-                {isSaving ? "Synchronizing Silhouette..." : "Finalize & Secure Profile"}
+                {isSaving ? 'Synchronizing Silhouette...' : 'Finalize & Secure Profile'}
               </button>
             </div>
           )}
@@ -497,7 +933,13 @@ function FitConfiguratorContent() {
 
 export default function FitConfiguratorPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin text-zinc-300" size={48} /></div>}>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="animate-spin text-zinc-300" size={48} />
+        </div>
+      }
+    >
       <FitConfiguratorContent />
     </Suspense>
   );

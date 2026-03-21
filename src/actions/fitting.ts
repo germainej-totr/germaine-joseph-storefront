@@ -25,6 +25,9 @@ const FittingSessionSchema = z.object({
 export async function upsertFittingSession(rawData: unknown) {
   try {
     const validatedData = FittingSessionSchema.parse(rawData);
+    const shopifyOrderId =
+      validatedData.shopifyOrderId ??
+      `manual-${validatedData.customerEmail.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}`;
 
     // 2. Find existing FitProfile to establish the relationship
     const existingProfile = await db.fitProfile.findUnique({
@@ -34,7 +37,7 @@ export async function upsertFittingSession(rawData: unknown) {
     // 3. Perform Upsert
     const session = await db.fittingSession.upsert({
       where: { 
-        shopifyOrderId: validatedData.shopifyOrderId ?? "none" 
+        shopifyOrderId
       },
       update: {
         measurements: validatedData.measurements,
@@ -52,7 +55,7 @@ export async function upsertFittingSession(rawData: unknown) {
         
         measurements: validatedData.measurements,
         tailorName: validatedData.tailorName,
-        shopifyOrderId: validatedData.shopifyOrderId,
+        shopifyOrderId,
         status: FittingStatus.DRAFT,
         
         ...(existingProfile && {

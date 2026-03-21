@@ -1,5 +1,3 @@
-import { useRouter } from 'next/navigation';
-
 export default function CollectionPage({ params }: { params: { collection: string } }) {
   return (
     <div className="p-8">
