@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
         try {
           // Render email
-          const emailHtml = render(
+          const emailHtml = await render(
             <RefitReminderEmail
               customerName={profile.profile_name || 'Valued Customer'}
               lastFitDate={profile.updatedAt}
@@ -60,6 +60,9 @@ export async function POST(request: Request) {
             subject: 'Your Fit Refresh Is Ready — Updated Measurements',
             html: emailHtml,
           });
+
+          const emailId = sendResult.data?.id;
+          const sendError = sendResult.error;
 
           // Track lifecycle event
           const lifecycleEvent: LifecycleEventPayload = {
@@ -81,12 +84,12 @@ export async function POST(request: Request) {
           }).catch((err) => console.error('Analytics event failed:', err));
 
           return {
-            success: sendResult.id ? true : false,
+            success: !!emailId && !sendError,
             profileId: profile.id,
             email: profile.email,
             ageDays,
-            emailId: sendResult.id,
-            error: sendResult.error?.message,
+            emailId,
+            error: sendError?.message,
           };
         } catch (error) {
           return {

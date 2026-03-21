@@ -33,9 +33,6 @@ export async function findStaleProfiles(options?: {
   try {
     const profiles = await prisma.fitProfile.findMany({
       where: {
-        // Only target profiles with actual customer data
-        email: { not: null },
-        customerId: { not: null },
         // Updated more than 6 months (stale) OR approaching 6-month mark
         updatedAt: {
           lte: staleThreshold,

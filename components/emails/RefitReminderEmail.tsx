@@ -30,8 +30,7 @@ export default function RefitReminderEmail({
           <Section style={{ marginBottom: '30px', lineHeight: '1.6', color: '#333' }}>
             <Text>Hi {customerName},</Text>
             <Text>
-              {{/* This uses the MTM gate logic: if it's been 6+ months since your last fit profile update, 
-                we recommend refreshing your measurements for optimal tailoring precision. */}}
+              {/* This uses the MTM gate logic: if it's been 6+ months since last update, prompt re-measurement. */}
               Your most recent fit profile was from <strong>{lastFitDate.toLocaleDateString()}</strong> — that's{' '}
               <strong>{estimatedDaysSinceFit} days ago</strong>.
             </Text>
