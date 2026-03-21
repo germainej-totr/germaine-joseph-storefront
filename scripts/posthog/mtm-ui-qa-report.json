@@ -1,0 +1,139 @@
+{
+  "generated_at": "2026-03-21T15:34:44.745Z",
+  "required_payload_keys": [
+    "event_name",
+    "occurred_at",
+    "product_handle",
+    "product_type",
+    "mtm_category",
+    "variant_id",
+    "customer_id",
+    "fit_profile_id",
+    "gate_decision",
+    "gate_reason",
+    "profile_age_days"
+  ],
+  "scenarios": [
+    {
+      "scenario": "unauthenticated",
+      "expected_decision_event": "gjm_gate_unauthenticated",
+      "expected_modal_event": null,
+      "expected_action_events": [
+        "gjm_start_new_fitting_clicked"
+      ],
+      "checks": {
+        "gate_decision_on_pdp": "pending",
+        "modal_behavior": "pending",
+        "cta_branching": "pending",
+        "posthog_event": "pending",
+        "payload_properties": "pending",
+        "redirect_path_health": "pending"
+      },
+      "observed": {
+        "decision_event": null,
+        "modal_event": null,
+        "action_events": [],
+        "payload_sample": null,
+        "notes": ""
+      },
+      "status": "pending"
+    },
+    {
+      "scenario": "saved-fit-eligible",
+      "expected_decision_event": "gjm_gate_saved_fit_eligible",
+      "expected_modal_event": "gjm_saved_fit_modal_shown",
+      "expected_action_events": [
+        "gjm_use_saved_fit_clicked",
+        "gjm_start_new_fitting_clicked"
+      ],
+      "checks": {
+        "gate_decision_on_pdp": "pending",
+        "modal_behavior": "pending",
+        "cta_branching": "pending",
+        "posthog_event": "pending",
+        "payload_properties": "pending",
+        "redirect_path_health": "pending"
+      },
+      "observed": {
+        "decision_event": null,
+        "modal_event": null,
+        "action_events": [],
+        "payload_sample": null,
+        "notes": ""
+      },
+      "status": "pending"
+    },
+    {
+      "scenario": "refit-recommended",
+      "expected_decision_event": "gjm_gate_refit_recommended",
+      "expected_modal_event": "gjm_refit_recommended_modal_shown",
+      "expected_action_events": [
+        "gjm_start_new_fitting_clicked"
+      ],
+      "checks": {
+        "gate_decision_on_pdp": "pending",
+        "modal_behavior": "pending",
+        "cta_branching": "pending",
+        "posthog_event": "pending",
+        "payload_properties": "pending",
+        "redirect_path_health": "pending"
+      },
+      "observed": {
+        "decision_event": null,
+        "modal_event": null,
+        "action_events": [],
+        "payload_sample": null,
+        "notes": ""
+      },
+      "status": "pending"
+    },
+    {
+      "scenario": "full-mtm-required",
+      "expected_decision_event": "gjm_gate_full_mtm_required",
+      "expected_modal_event": null,
+      "expected_action_events": [
+        "gjm_start_new_fitting_clicked"
+      ],
+      "checks": {
+        "gate_decision_on_pdp": "pending",
+        "modal_behavior": "pending",
+        "cta_branching": "pending",
+        "posthog_event": "pending",
+        "payload_properties": "pending",
+        "redirect_path_health": "pending"
+      },
+      "observed": {
+        "decision_event": null,
+        "modal_event": null,
+        "action_events": [],
+        "payload_sample": null,
+        "notes": ""
+      },
+      "status": "pending"
+    },
+    {
+      "scenario": "profile-not-owned",
+      "expected_decision_event": "gjm_gate_profile_not_owned",
+      "expected_modal_event": null,
+      "expected_action_events": [
+        "gjm_start_new_fitting_clicked"
+      ],
+      "checks": {
+        "gate_decision_on_pdp": "pending",
+        "modal_behavior": "pending",
+        "cta_branching": "pending",
+        "posthog_event": "pending",
+        "payload_properties": "pending",
+        "redirect_path_health": "pending"
+      },
+      "observed": {
+        "decision_event": null,
+        "modal_event": null,
+        "action_events": [],
+        "payload_sample": null,
+        "notes": ""
+      },
+      "status": "pending"
+    }
+  ]
+}

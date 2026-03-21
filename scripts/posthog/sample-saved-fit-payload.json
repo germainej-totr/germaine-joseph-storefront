@@ -1,0 +1,13 @@
+{
+  "event_name": "gjm_gate_saved_fit_eligible",
+  "occurred_at": "2026-03-22T00:00:00Z",
+  "product_handle": "qa",
+  "product_type": "suit",
+  "mtm_category": "suit",
+  "variant_id": "v1",
+  "customer_id": "c1",
+  "fit_profile_id": "fp1",
+  "gate_decision": "saved_fit_eligible",
+  "gate_reason": "saved_fit_eligible",
+  "profile_age_days": 120
+}
