@@ -1,10 +1,16 @@
 import { db } from "@/lib/db";
 import Link from "next/link";
-import StatusToggle from "./StatusToggle";
 
 export default async function AdminDashboard() {
-  const sessions = await db.fittingSession.findMany({
-    orderBy: { createdAt: 'desc' },
+  const appointments = await db.fitProfile.findMany({
+    where: {
+      OR: [
+        { appointmentDate: { not: null } },
+        { appointmentTime: { not: null } },
+      ],
+    },
+    orderBy: { updatedAt: 'desc' },
+    include: { fittingSessions: { orderBy: { createdAt: 'desc' }, take: 1 } },
   });
 
   const sixMonthsAgo = new Date();
@@ -21,58 +27,69 @@ export default async function AdminDashboard() {
         <thead>
           <tr style={{ backgroundColor: "#f8f9fa", borderBottom: "2px solid #dee2e6" }}>
             <th style={{ padding: "12px" }}>Customer</th>
-            <th style={{ padding: "12px" }}>Order ID</th>
-            <th style={{ padding: "12px" }}>Product</th>
-            <th style={{ padding: "12px" }}>Lifecycle Status</th>
-            <th style={{ padding: "12px" }}>Last Fitting</th>
-            <th style={{ padding: "12px" }}>CRM Action</th>
+            <th style={{ padding: "12px" }}>Appointment</th>
+            <th style={{ padding: "12px" }}>Fit Type</th>
+            <th style={{ padding: "12px" }}>Blocks</th>
+            <th style={{ padding: "12px" }}>Service Mode</th>
+            <th style={{ padding: "12px" }}>Last Update</th>
             <th style={{ padding: "12px" }}>Action</th>
+            <th style={{ padding: "12px" }}>Tailor File</th>
           </tr>
         </thead>
         <tbody>
-          {sessions.map((session) => {
-            const needsRefit = new Date(session.updatedAt) < sixMonthsAgo;
+          {appointments.map((profile) => {
+            const needsRefit = new Date(profile.updatedAt) < sixMonthsAgo;
+            const technical = (profile.technicalSpecs ?? {}) as {
+              attributes?: { appointmentMode?: string; onLocationAddress?: string };
+            };
+            const appointmentMode = technical.attributes?.appointmentMode || "Studio";
+            const appointmentLabel = [profile.appointmentDate, profile.appointmentTime]
+              .filter(Boolean)
+              .join(" @ ") || "Pending schedule";
             
             return (
-              <tr key={session.id} style={{ borderBottom: "1px solid #eee" }}>
+              <tr key={profile.id} style={{ borderBottom: "1px solid #eee" }}>
                 <td style={{ padding: "12px" }}>
-                  <div style={{ fontWeight: "500" }}>{session.customerEmail}</div>
+                  <div style={{ fontWeight: "500" }}>{profile.email}</div>
                   {needsRefit && (
                     <div style={{ fontSize: "10px", color: "#d93025", fontWeight: "bold", marginTop: "4px" }}>
                       ⚠️ RE-FITTING REQUIRED (6MO+)
                     </div>
                   )}
                 </td>
-                <td style={{ padding: "12px" }}>#{(session.shopifyOrderId ?? "00000").slice(-5)}</td>
-                <td style={{ padding: "12px" }}>{session.productionLine}</td>
-                
-                {/* INTERACTIVE TOGGLE COMPONENT */}
+                <td style={{ padding: "12px", fontSize: "13px" }}>{appointmentLabel}</td>
+                <td style={{ padding: "12px" }}>{profile.fitPreference || "Not set"}</td>
                 <td style={{ padding: "12px" }}>
-                  <StatusToggle id={session.id} status={session.status as string} />
+                  J{profile.jacketSize || "-"} / T{profile.trouserSize || "-"}
                 </td>
+                <td style={{ padding: "12px" }}>{appointmentMode}</td>
 
                 <td style={{ padding: "12px", fontSize: "13px" }}>
-                  {new Date(session.updatedAt).toLocaleDateString('en-GB', {
+                  {new Date(profile.updatedAt).toLocaleDateString('en-GB', {
                     day: '2-digit', month: 'short', year: 'numeric'
                   })}
                 </td>
 
                 <td style={{ padding: "12px" }}>
                   {needsRefit ? (
-                    <button 
-                      onClick={() => alert(`Emailing ${session.customerEmail} check-in link...`)}
-                      style={{ padding: "6px 10px", backgroundColor: "#000", color: "#fff", border: "none", borderRadius: "4px", fontSize: "11px", cursor: "pointer", fontWeight: "bold" }}
-                    >
-                      SEND CHECK-IN
-                    </button>
+                    <span style={{ color: "#d93025", fontSize: "11px", fontWeight: "bold" }}>Follow-up needed</span>
                   ) : (
                     <span style={{ color: "#999", fontSize: "11px" }}>In Window</span>
                   )}
                 </td>
 
                 <td style={{ padding: "12px" }}>
-                  <Link href={`/admin/fitting/${session.id}`} style={{ color: "#007bff", textDecoration: "none", fontWeight: "bold", fontSize: "14px" }}>
-                    Open Fitting →
+                  <Link href={`/admin/appointments`} style={{ color: "#007bff", textDecoration: "none", fontWeight: "bold", fontSize: "14px" }}>
+                    Open Intake →
+                  </Link>
+                </td>
+
+                <td style={{ padding: "12px" }}>
+                  <Link
+                    href={`/admin/fitting/${profile.id}`}
+                    style={{ color: "#2d6a4f", textDecoration: "none", fontWeight: "bold", fontSize: "14px" }}
+                  >
+                    Tailor File →
                   </Link>
                 </td>
               </tr>

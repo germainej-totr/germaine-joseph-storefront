@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 export default function AppointmentsPage() {
   const [bookings, setBookings] = useState<any[]>([]);
@@ -30,11 +31,8 @@ export default function AppointmentsPage() {
           const prefs = specs.preferences || {};
           const isExpanded = expandedId === booking.id;
 
-          const appointmentDate = booking.appointmentTime 
-            ? new Date(booking.appointmentTime).toLocaleString('en-GB', {
-                weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-              })
-            : 'PENDING SCHEDULE';
+          const appointmentDate =
+            [booking.appointmentDate, booking.appointmentTime].filter(Boolean).join(' @ ') || 'PENDING SCHEDULE';
 
           return (
             <div key={booking.id} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden transition-all hover:shadow-md">
@@ -49,11 +47,18 @@ export default function AppointmentsPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end">
+                  <div className="flex flex-col items-end gap-2">
                     <span className="text-2xl text-gray-300 leading-none">{isExpanded ? '−' : '+'}</span>
-                    <span className="mt-2 px-3 py-1 bg-black text-white text-[10px] uppercase tracking-[0.2em] rounded-full font-bold">
-                      {specs.fitPreference || 'NOT DEFINED'}
+                    <span className="px-3 py-1 bg-black text-white text-[10px] uppercase tracking-[0.2em] rounded-full font-bold">
+                      {booking.fitPreference || prefs.fitType || 'NOT DEFINED'}
                     </span>
+                    <Link
+                      href={`/admin/fitting/${booking.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="px-3 py-1 bg-emerald-700 text-white text-[10px] uppercase tracking-[0.2em] rounded-full font-bold hover:bg-emerald-800 transition-colors"
+                    >
+                      Tailor File →
+                    </Link>
                   </div>
                 </div>
 
@@ -109,14 +114,14 @@ export default function AppointmentsPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="bg-white p-4 rounded border border-gray-100">
                             <p className="text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-widest">Use Case</p>
-                            <p className={`text-sm font-bold ${prefs.primaryUseCase ? 'text-gray-900' : 'text-gray-300 italic'}`}>
-                              {prefs.primaryUseCase || 'Not Captured'}
+                            <p className={`text-sm font-bold ${(attrs.useCase || prefs.primaryUseCase) ? 'text-gray-900' : 'text-gray-300 italic'}`}>
+                              {attrs.useCase || prefs.primaryUseCase || 'Not Captured'}
                             </p>
                           </div>
                           <div className="bg-white p-4 rounded border border-gray-100">
                             <p className="text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-widest">Timeline</p>
-                            <p className={`text-sm font-bold ${prefs.productionTimeline ? 'text-blue-700' : 'text-gray-300 italic'}`}>
-                              {prefs.productionTimeline || 'Not Captured'}
+                            <p className={`text-sm font-bold ${(attrs.timeline || prefs.productionTimeline) ? 'text-blue-700' : 'text-gray-300 italic'}`}>
+                              {attrs.timeline || prefs.productionTimeline || 'Not Captured'}
                             </p>
                           </div>
                         </div>

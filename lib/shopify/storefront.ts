@@ -30,3 +30,23 @@ export async function shopifyFetch<T>({
 
   return result;
 }
+
+/**
+ * Utility for Storefront API GraphQL queries (read-only, client-facing operations).
+ * Returns raw response with potential errors; caller handles error handling.
+ */
+export async function shopifyStorefrontGraphQL<T = any>(
+  query: string,
+  variables?: Record<string, unknown>,
+): Promise<T> {
+  const response = await fetch(`https://${DOMAIN}/api/2025-01/graphql.json`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Storefront-Access-Token": TOKEN,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+
+  return response.json();
+}
