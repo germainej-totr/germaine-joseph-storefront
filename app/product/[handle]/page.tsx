@@ -72,7 +72,7 @@ export default function ProductPage() {
           console.error('Product API returned null product', { handle, json });
         }
 
-        const required = nextProduct?.metafields?.mtm_required === 'true';
+        const required = nextProduct?.mtm_required?.value === 'true';
         setMtmRequired(required);
 
         const profileId = readCookie('fit_profile_id');
