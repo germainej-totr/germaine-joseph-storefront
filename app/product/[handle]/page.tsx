@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useParams, usePathname } from 'next/navigation';
 import SavedFitPromptModal from '@/components/SavedFitPromptModal';
 import { trackMtmGateEvent } from '@/lib/analytics/trackMtmGateEvent';
 import type { MtmGateEventName } from '@/lib/analytics/mtmGateContract';
@@ -24,8 +25,13 @@ function readCookie(name: string): string | null {
   return found.split('=')[1] || null;
 }
 
-export default function ProductPage({ params }: { params: { handle: string } }) {
-  const handle = params.handle;
+export default function ProductPage() {
+  const routeParams = useParams<{ handle?: string | string[] }>();
+  const pathname = usePathname();
+  const rawHandle = routeParams?.handle;
+  const routeHandle = Array.isArray(rawHandle) ? rawHandle[0] || '' : rawHandle || '';
+  const pathHandle = decodeURIComponent((pathname || '').split('/').filter(Boolean).pop() || '');
+  const handle = routeHandle || pathHandle;
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [addingToCart, setAddingToCart] = useState(false);
@@ -44,54 +50,73 @@ export default function ProductPage({ params }: { params: { handle: string } }) 
 
   useEffect(() => {
     async function boot() {
-      setLoading(true);
-
-      const res = await fetch(`/api/products/${handle}`);
-      const json = await res.json();
-      const nextProduct = json.product;
-      setProduct(nextProduct);
-
-      const required = nextProduct?.metafields?.mtm_required === 'true';
-      setMtmRequired(required);
-
-      const profileId = readCookie('fit_profile_id');
-      setFitProfileId(profileId);
-
-      if (!required) {
-        setGateStatus(null);
+      if (!handle) {
+        setProduct(null);
         setLoading(false);
         return;
       }
 
-      const gateRes = await fetch(`/api/fit/gate-status?fitProfileId=${encodeURIComponent(profileId || '')}`);
-      const gate = (await gateRes.json()) as GateStatusResponse;
-      setGateStatus(gate);
+      setLoading(true);
 
-      const profileAgeDays =
-        typeof gate.profileAgeMonths === 'number' ? Math.round(gate.profileAgeMonths * 30.4) : undefined;
+      try {
+        const res = await fetch(`/api/products/${encodeURIComponent(handle)}`, { cache: 'no-store' });
+        if (!res.ok) {
+          throw new Error(`Product API HTTP ${res.status}`);
+        }
 
-      const decisionMap: Record<string, MtmGateEventName> = {
-        full_mtm_required: 'gjm_gate_full_mtm_required',
-        saved_fit_eligible: 'gjm_gate_saved_fit_eligible',
-        refit_recommended: 'gjm_gate_refit_recommended',
-        unauthenticated: 'gjm_gate_unauthenticated',
-        profile_not_owned: 'gjm_gate_profile_not_owned',
-      };
+        const json = await res.json();
+        const nextProduct = json?.product ?? json?.data?.productByHandle ?? null;
+        setProduct(nextProduct);
 
-      const decisionEvent = decisionMap[gate.reason] || decisionMap[gate.entryPath] || 'gjm_gate_full_mtm_required';
-      trackMtmGateEvent(decisionEvent, {
-        product_handle: handle,
-        product_type: String(productType || 'unknown'),
-        mtm_category: String(mtmCategory || 'unknown'),
-        variant_id: String(nextProduct?.variants?.[0]?.id || ''),
-        customer_id: gate.customerId,
-        fit_profile_id: gate.fitProfileId || profileId || undefined,
-        gate_decision: gate.entryPath,
-        gate_reason: gate.reason,
-        profile_age_days: profileAgeDays,
-      });
+        if (!nextProduct) {
+          console.error('Product API returned null product', { handle, json });
+        }
 
-      setLoading(false);
+        const required = nextProduct?.metafields?.mtm_required === 'true';
+        setMtmRequired(required);
+
+        const profileId = readCookie('fit_profile_id');
+        setFitProfileId(profileId);
+
+        if (!required) {
+          setGateStatus(null);
+          setLoading(false);
+          return;
+        }
+
+        const gateRes = await fetch(`/api/fit/gate-status?fitProfileId=${encodeURIComponent(profileId || '')}`);
+        const gate = (await gateRes.json()) as GateStatusResponse;
+        setGateStatus(gate);
+
+        const profileAgeDays =
+          typeof gate.profileAgeMonths === 'number' ? Math.round(gate.profileAgeMonths * 30.4) : undefined;
+
+        const decisionMap: Record<string, MtmGateEventName> = {
+          full_mtm_required: 'gjm_gate_full_mtm_required',
+          saved_fit_eligible: 'gjm_gate_saved_fit_eligible',
+          refit_recommended: 'gjm_gate_refit_recommended',
+          unauthenticated: 'gjm_gate_unauthenticated',
+          profile_not_owned: 'gjm_gate_profile_not_owned',
+        };
+
+        const decisionEvent = decisionMap[gate.reason] || decisionMap[gate.entryPath] || 'gjm_gate_full_mtm_required';
+        trackMtmGateEvent(decisionEvent, {
+          product_handle: handle,
+          product_type: String(productType || 'unknown'),
+          mtm_category: String(mtmCategory || 'unknown'),
+          variant_id: String(nextProduct?.variants?.[0]?.id || ''),
+          customer_id: gate.customerId,
+          fit_profile_id: gate.fitProfileId || profileId || undefined,
+          gate_decision: gate.entryPath,
+          gate_reason: gate.reason,
+          profile_age_days: profileAgeDays,
+        });
+      } catch (error) {
+        console.error('Failed to load PDP product', { handle, error });
+        setProduct(null);
+      } finally {
+        setLoading(false);
+      }
     }
 
     boot();
