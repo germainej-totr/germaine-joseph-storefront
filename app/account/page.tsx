@@ -42,7 +42,7 @@ export default async function AccountPage() {
     <main className="mx-auto min-h-screen max-w-4xl px-6 py-10">
       <header className="mb-8 flex flex-col gap-4 border-b border-zinc-200 pb-6 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">Tailor On The Road</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">Germaine Joseph</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight text-zinc-950">Account</h1>
           <p className="mt-2 max-w-2xl text-sm text-zinc-600">
             This app-side account page gives customers a stable route back into the storefront and access to their fit profile state.

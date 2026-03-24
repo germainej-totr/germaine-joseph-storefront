@@ -1,11 +1,22 @@
 import Link from 'next/link';
+import { headers } from 'next/headers';
 import type { ProductSummary } from '@/types/fit';
 
 type ShopProduct = ProductSummary & { imageUrl?: string };
 
 export default async function ShopPage() {
+  const headerStore = await headers();
+  const host = headerStore.get('x-forwarded-host') || headerStore.get('host') || '';
+  const proto = headerStore.get('x-forwarded-proto') || 'https';
+  const fallbackOrigin = host ? `${proto}://${host}` : '';
+  const origin = process.env.NEXT_PUBLIC_BASE_URL || fallbackOrigin;
+
+  if (!origin) {
+    throw new Error('Unable to resolve origin for /shop product fetch');
+  }
+
   // fetch products from our BFF endpoint
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/products?first=12`, {
+  const res = await fetch(`${origin}/api/products?first=12`, {
     cache: 'no-store',
   });
   const json = await res.json();
