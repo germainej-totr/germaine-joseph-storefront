@@ -41,6 +41,35 @@ export async function POST(request: Request) {
       query: `email:${email}`,
     });
 
+    const graphqlErrors = data?.errors;
+    if (Array.isArray(graphqlErrors) && graphqlErrors.length > 0) {
+      const accessDenied = graphqlErrors.some((err: unknown) => {
+        if (!err || typeof err !== 'object') return false;
+        const extensions = (err as { extensions?: { code?: string } }).extensions;
+        return extensions?.code === 'ACCESS_DENIED';
+      });
+
+      if (accessDenied) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: 'customer_lookup_access_denied',
+            hint: 'Admin API token needs customer access scope/permissions.',
+          },
+          { status: 403 },
+        );
+      }
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'customer_lookup_failed',
+          details: graphqlErrors,
+        },
+        { status: 502 },
+      );
+    }
+
     const customer = data?.data?.customers?.edges?.[0]?.node;
     if (!customer || String(customer.email).toLowerCase() !== email) {
       return NextResponse.json({ ok: false, error: 'customer_not_found' }, { status: 404 });
