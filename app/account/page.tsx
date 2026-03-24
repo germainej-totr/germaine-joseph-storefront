@@ -67,6 +67,15 @@ export default async function AccountPage() {
             A signed app session is created when a customer completes the fit-profile flow. You can also bridge from your Shopify customer identity here using a one-time code sent to the same email address.
           </p>
 
+          <div className="mt-5">
+            <Link
+              href="/api/auth/customer-account/start"
+              className="inline-flex rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-900 hover:text-zinc-900"
+            >
+              Sign in with Shopify account
+            </Link>
+          </div>
+
           <AccountLinkForm />
 
           <div className="mt-6 flex flex-wrap gap-3">
