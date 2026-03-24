@@ -78,22 +78,24 @@ export async function POST(request: Request) {
     const resendApiKey = process.env.RESEND_API_KEY;
     const resendFrom = process.env.RESEND_FROM;
 
-    const missingEnv: string[] = [];
-    if (!resendApiKey) missingEnv.push('RESEND_API_KEY');
-    if (!resendFrom) missingEnv.push('RESEND_FROM');
+    if (!resendApiKey || !resendFrom) {
+      const missingEnv: string[] = [];
+      if (!resendApiKey) missingEnv.push('RESEND_API_KEY');
+      if (!resendFrom) missingEnv.push('RESEND_FROM');
 
-    if (missingEnv.length) {
       return NextResponse.json(
         { ok: false, error: 'email_not_configured', missingEnv },
         { status: 503 },
       );
     }
 
+    const resendFromAddress: string = resendFrom;
+
     const code = generateCode();
     const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(' ').trim() || 'there';
 
     const sendResult = await resend.emails.send({
-      from: resendFrom,
+      from: resendFromAddress,
       to: email,
       subject: 'Your Tailor On The Road sign-in code',
       html: `
