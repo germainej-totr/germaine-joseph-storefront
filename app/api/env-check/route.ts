@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ ok: false, error: 'not_available' }, { status: 404 });
+  }
+
   const hasShopifyAdminToken = Boolean(
     process.env.SHOPIFY_ADMIN_ACCESS_TOKEN || process.env.SHOPIFY_ADMIN_API_TOKEN,
   );

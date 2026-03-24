@@ -45,7 +45,7 @@ export default async function AccountPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">Germaine Joseph</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight text-zinc-950">Account</h1>
           <p className="mt-2 max-w-2xl text-sm text-zinc-600">
-            This app-side account page gives customers a stable route back into the storefront and access to their fit profile state.
+            Manage your fit profile, saved sizes, and return to the storefront.
           </p>
         </div>
 
@@ -102,9 +102,7 @@ export default async function AccountPage() {
             </div>
 
             <InfoRow label="Email" value={session.email} />
-            <InfoRow label="Session ID" value={session.sessionId} />
-            <InfoRow label="Customer ID" value={session.customerId || 'Pending Shopify bridge'} />
-            <InfoRow label="Session expiry" value={new Date(session.expiresAt).toLocaleString()} />
+            <InfoRow label="Session valid until" value={new Date(session.expiresAt).toLocaleString()} />
           </section>
 
           <section className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm">
@@ -116,7 +114,6 @@ export default async function AccountPage() {
             {profile ? (
               <>
                 <InfoRow label="Profile" value={profile.profile_name || 'Saved profile'} />
-                <InfoRow label="Fit profile ID" value={profile.id} />
                 <InfoRow label="Jacket size" value={profile.jacketSize || 'Not set'} />
                 <InfoRow label="Trouser size" value={profile.trouserSize || 'Not set'} />
                 <InfoRow label="Preference" value={profile.fitPreference || 'Not set'} />
