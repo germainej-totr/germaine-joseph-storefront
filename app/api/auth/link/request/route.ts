@@ -75,8 +75,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'customer_not_found' }, { status: 404 });
     }
 
-    if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM) {
-      return NextResponse.json({ ok: false, error: 'email_not_configured' }, { status: 503 });
+    const missingEnv: string[] = [];
+    if (!process.env.RESEND_API_KEY) missingEnv.push('RESEND_API_KEY');
+    if (!process.env.RESEND_FROM) missingEnv.push('RESEND_FROM');
+
+    if (missingEnv.length) {
+      return NextResponse.json(
+        { ok: false, error: 'email_not_configured', missingEnv },
+        { status: 503 },
+      );
     }
 
     const code = generateCode();
