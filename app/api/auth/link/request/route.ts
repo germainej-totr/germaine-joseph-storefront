@@ -36,6 +36,7 @@ export async function POST(request: Request) {
   try {
     const body = BODY_SCHEMA.parse(await request.json());
     const email = body.email.trim().toLowerCase();
+    const storeDomain = process.env.SHOPIFY_STORE_DOMAIN || 'unknown_store';
 
     const data = await shopifyAdminGraphQL(CUSTOMER_BY_EMAIL_QUERY, {
       query: `email:${email}`,
@@ -72,7 +73,10 @@ export async function POST(request: Request) {
 
     const customer = data?.data?.customers?.edges?.[0]?.node;
     if (!customer || String(customer.email).toLowerCase() !== email) {
-      return NextResponse.json({ ok: false, error: 'customer_not_found' }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, error: 'customer_not_found', storeDomain },
+        { status: 404 },
+      );
     }
 
     const resendApiKey = process.env.RESEND_API_KEY;
