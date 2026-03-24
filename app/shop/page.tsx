@@ -1,26 +1,54 @@
 import Link from 'next/link';
-import { headers } from 'next/headers';
 import type { ProductSummary } from '@/types/fit';
+import { shopifyFetch } from '@/lib/shopify';
 
 type ShopProduct = ProductSummary & { imageUrl?: string };
 
+interface ProductNode {
+  id: string;
+  handle: string;
+  title: string;
+  images?: { edges?: Array<{ node?: { url?: string | null } }> };
+}
+
+interface ListProductsResponse {
+  data?: {
+    products?: {
+      edges?: Array<{ node: ProductNode }>;
+    };
+  };
+  errors?: Array<{ message?: string }>;
+}
+
 export default async function ShopPage() {
-  const headerStore = await headers();
-  const host = headerStore.get('x-forwarded-host') || headerStore.get('host') || '';
-  const proto = headerStore.get('x-forwarded-proto') || 'https';
-  const fallbackOrigin = host ? `${proto}://${host}` : '';
-  const origin = process.env.NEXT_PUBLIC_BASE_URL || fallbackOrigin;
+  const query = `
+    query listProducts($first: Int!) {
+      products(first: $first) {
+        edges {
+          node {
+            id
+            handle
+            title
+            images(first: 1) { edges { node { url } } }
+          }
+        }
+      }
+    }
+  `;
 
-  if (!origin) {
-    throw new Error('Unable to resolve origin for /shop product fetch');
-  }
+  const payload = (await shopifyFetch({
+    query,
+    variables: { first: 12 },
+  })) as ListProductsResponse;
 
-  // fetch products from our BFF endpoint
-  const res = await fetch(`${origin}/api/products?first=12`, {
-    cache: 'no-store',
-  });
-  const json = await res.json();
-  const products = (json.products || []) as ShopProduct[];
+  const edges = payload.data?.products?.edges || [];
+  const products: ShopProduct[] = edges.map(({ node }) => ({
+    id: node.id,
+    handle: node.handle,
+    title: node.title,
+    imageUrl: node.images?.edges?.[0]?.node?.url || undefined,
+    mtmRequired: false,
+  }));
 
   return (
     <div className="p-8">
