@@ -4,6 +4,36 @@ import { useState } from 'react';
 
 type Stage = 'request' | 'verify';
 
+type LinkRequestErrorPayload = {
+  error?: string;
+  missingEnv?: string[];
+  hint?: string;
+  storeDomain?: string;
+};
+
+function describeRequestError(payload: LinkRequestErrorPayload) {
+  const code = payload.error || 'unknown_error';
+
+  if (code === 'email_not_configured') {
+    const missing = Array.isArray(payload.missingEnv) ? payload.missingEnv.join(', ') : '';
+    if (missing) {
+      return `Email delivery is not configured in this deployment. Missing: ${missing}.`;
+    }
+    return 'Email delivery is not configured in this deployment.';
+  }
+
+  if (code === 'customer_not_found') {
+    const store = payload.storeDomain ? ` Store: ${payload.storeDomain}.` : '';
+    return `No Shopify customer was found for that email in the active store.${store}`;
+  }
+
+  if (code === 'customer_lookup_access_denied') {
+    return payload.hint || 'Customer lookup is blocked by missing Shopify Admin customer permissions.';
+  }
+
+  return code;
+}
+
 export default function AccountLinkForm() {
   const [stage, setStage] = useState<Stage>('request');
   const [email, setEmail] = useState('');
@@ -25,9 +55,9 @@ export default function AccountLinkForm() {
         body: JSON.stringify({ email }),
       });
 
-      const payload = await response.json();
+      const payload = (await response.json()) as LinkRequestErrorPayload;
       if (!response.ok) {
-        throw new Error(payload.error || 'Unable to send code');
+        throw new Error(describeRequestError(payload));
       }
 
       setStage('verify');
