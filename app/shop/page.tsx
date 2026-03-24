@@ -2,6 +2,8 @@ import Link from 'next/link';
 import type { ProductSummary } from '@/types/fit';
 import { shopifyFetch } from '@/lib/shopify';
 
+export const dynamic = 'force-dynamic';
+
 type ShopProduct = ProductSummary & { imageUrl?: string };
 
 interface ProductNode {
