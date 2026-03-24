@@ -214,6 +214,11 @@ async function upsertOption(option) {
       handle: option.handle,
     },
     metaobject: {
+      capabilities: {
+        publishable: {
+          status: 'ACTIVE'
+        }
+      },
       fields: [
         { key: 'key', value: option.key },
         { key: 'label', value: option.label },

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-21T15:34:44.745Z",
+  "generated_at": "2026-03-21T15:48:43.212Z",
   "required_payload_keys": [
     "event_name",
     "occurred_at",
@@ -26,17 +26,29 @@
         "modal_behavior": "pending",
         "cta_branching": "pending",
         "posthog_event": "pending",
-        "payload_properties": "pending",
+        "payload_properties": "passed",
         "redirect_path_health": "pending"
       },
       "observed": {
-        "decision_event": null,
+        "decision_event": "gjm_gate_unauthenticated",
         "modal_event": null,
         "action_events": [],
-        "payload_sample": null,
-        "notes": ""
+        "payload_sample": {
+          "event_name": "gjm_gate_unauthenticated",
+          "occurred_at": "2026-03-22T00:00:00Z",
+          "product_handle": "qa-mtm-product",
+          "product_type": "suit",
+          "mtm_category": "suit",
+          "variant_id": "gid://shopify/ProductVariant/QA123",
+          "customer_id": "gid://shopify/Customer/QA123",
+          "fit_profile_id": "qa-fit-profile-123",
+          "gate_decision": "unauthenticated",
+          "gate_reason": "gjm_gate_unauthenticated",
+          "profile_age_days": 120
+        },
+        "notes": "Payload validated via script: node scripts/posthog/mtm-ui-path-qa.mjs validate-payload --scenario unauthenticated --file scripts/posthog/sample-unauthenticated-payload.json"
       },
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "scenario": "saved-fit-eligible",

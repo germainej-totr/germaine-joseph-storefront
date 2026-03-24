@@ -159,34 +159,66 @@ Storefront API. They drive the MTM gating logic and customization options.
 
 | namespace.key              | type    | description |
 |---------------------------|---------|-------------|
-| `gjc.mtm_required`            | `boolean` | Marks a product as made‑to‑measure. Value: `true` for MTM categories. |
-| `gjc.mtm_category`            | `single_line_text_field` | MTM category name (e.g. "Business Suit"). Used for fit/booking routing. |
-| `gjc.mtm_base_block`          | `single_line_text_field` | Identifier for base pattern used in production. |
-| `gjc.mtm_customization_schema`| `json`  | Full metadata object containing available customisation options (lapels, vents, linings, etc.). |
+| `gjm.required_fit_gate`       | `boolean` | Marks product as fit-gate required for MTM flow. |
+| `gjm.mtm_category`            | `single_line_text_field` | MTM category name (e.g. "Business Suit"). Used for fit/booking routing. |
+| `gjm.option_set`              | `metaobject_reference` | Reference to `gjm_option_set` metaobject for configurator options. |
+| `gjm.fabric_ref`              | `metaobject_reference` | Reference to selected fabric record (`gjm_fabric`). |
+| `gjm.measurement_guide`       | `metaobject_reference` | Reference to `gjm_measurement_guide` for guided measuring UI. |
+| `gjm.lead_time_days`          | `number_integer` | Lead time override in days. |
+| `gjm.base_pattern_code`       | `single_line_text_field` | Identifier for base pattern used in production. |
+| `gjm.price_model`             | `single_line_text_field` | Pricing mode (e.g. `base_plus_options`, `all_in`). |
 
 ### Collection Metafields
 
 | namespace.key | type    | description |
 |---------------|---------|-------------|
-| `mtm.filter_tags` | `multi_line_text_field` | Comma‑separated tags used on PLP filters (e.g. "wedding, business"). |
-
-### Metaobjects (for options sets)
-
-A metaobject type `mtm_option` defines reusable option sets for styling.
-
-Fields:
-- `option_type`: string (e.g. "lapel", "vent", "pocket")
-- `value`: string
-- `label`: string
-- `image`: file reference (optional)
-- `category`: string (e.g. "suit", "shirt")
+| `gjm.filter_facets` | `json` | Facet/filter configuration used by PLP for MTM discovery. |
+| `gjm.collection_type` | `single_line_text_field` | Collection behavior type (e.g. `mtm`, `shop`). |
+| `gjm.default_collection_set_ref` | `metaobject_reference` | Default `gjm_option_set` for products that do not override option set. |
 
 ### Customer Metafields
 
-| namespace.key     | type | description |
+| namespace.key | type | description |
 |------------------|------|-------------|
-| `fit_profile_id` | `single_line_text_field` | ID of the primary `FitProfile` record in our database. |
-| `preferred_size` | `string` | human‑readable saved size name ("My Size"). |
+| `gjm_fit.height_cm` | `number_decimal` | Customer height in centimeters. |
+| `gjm_fit.weight_kg` | `number_decimal` | Customer weight in kilograms. |
+| `gjm_fit.body_build` | `single_line_text_field` | Body build descriptor (e.g. Athletic). |
+| `gjm_fit.fit_posture` | `single_line_text_field` | Posture profile used for fitting logic. |
+| `gjm_fit.fit_shoulder_slope` | `single_line_text_field` | Shoulder slope indicator. |
+| `gjm_fit.fit_preference` | `single_line_text_field` | Preferred silhouette/fit style. |
+| `gjm_fit.primary_use_case` | `single_line_text_field` | Style intent (e.g. Business, Wedding). |
+| `gjm_fit.event_date` | `date` | Event date such as wedding date. |
+| `gjm_fit.timeline_urgency` | `single_line_text_field` | Production timeline urgency code. |
+| `gjm_fit.preferred_fitting_mode` | `single_line_text_field` | Preferred appointment mode. |
+| `gjm_fit.consent_profile_storage` | `boolean` | Consent flag for profile data storage. |
+| `gjm_fit.fit_gate_version` | `single_line_text_field` | Fit Gate version used during capture. |
+| `gjm_fit.tailor_notes` | `multi_line_text_field` | Notes from customer to tailor. |
+| `gjm_fit.fit_issues` | `multi_line_text_field` | Known fit issues and concerns. |
+| `gjm_fit.trouser_break_preference` | `single_line_text_field` | Trouser break preference. |
+| `gjm_fit.trouser_rise_preference` | `single_line_text_field` | Trouser rise preference. |
+| `gjm_fit.current_sizes_json` | `json` | Known size history/snapshot. |
+| `gjm_fit.jacket_length_preference` | `single_line_text_field` | Jacket length preference. |
+| `gjm_fit.fit_gate_completed_at` | `date_time` | Timestamp when fit gate was completed. |
+| `gjm_fit.fit_gate_status` | `single_line_text_field` | Fit gate state marker for journey logic. |
+
+### Order Metafields
+
+| namespace.key | type | description |
+|------------------|------|-------------|
+| `gjm_fit.fit_gate_completed_at` | `date_time` | Fit gate completion timestamp copied onto order. |
+| `gjm_fit.fit_gate_version` | `single_line_text_field` | Fit gate version used for the order. |
+| `gjm_fit.fit_gate_snapshot` | `json` | Immutable fit gate snapshot for audit/production context. |
+
+### Metaobjects
+
+Production metaobject definitions in use:
+
+- `gjm_measurement_guide`
+- `gjm_service_type`
+- `gjm_choice`
+- `gjm_fabric`
+- `gjm_option`
+- `gjm_option_set`
 
 ### Cart Line Item Properties
 

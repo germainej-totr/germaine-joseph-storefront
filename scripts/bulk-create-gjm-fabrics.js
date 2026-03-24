@@ -107,6 +107,11 @@ async function upsertFabric(fabric) {
       handle: fabric.handle,
     },
     metaobject: {
+      capabilities: {
+        publishable: {
+          status: 'ACTIVE'
+        }
+      },
       fields: buildFields(fabric),
     },
   };

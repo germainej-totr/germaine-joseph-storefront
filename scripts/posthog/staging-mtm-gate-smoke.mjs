@@ -1,4 +1,5 @@
 const stagingBaseUrl = process.env.STAGING_BASE_URL;
+const bypassToken = process.env.VERCEL_BYPASS_TOKEN;
 
 if (!stagingBaseUrl) {
   console.error('Missing STAGING_BASE_URL. Example: https://staging.germainejoseph.com');
@@ -39,9 +40,12 @@ async function main() {
   let passed = 0;
 
   for (const eventName of events) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (bypassToken) headers['x-vercel-protection-bypass'] = bypassToken;
+
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(payloadFor(eventName)),
     });
 

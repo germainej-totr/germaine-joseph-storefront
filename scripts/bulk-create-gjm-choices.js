@@ -95,6 +95,11 @@ async function upsertChoice(choice) {
       handle: choice.handle,
     },
     metaobject: {
+      capabilities: {
+        publishable: {
+          status: 'ACTIVE'
+        }
+      },
       fields: [
         { key: 'value', value: choice.value },
         { key: 'label', value: choice.label },

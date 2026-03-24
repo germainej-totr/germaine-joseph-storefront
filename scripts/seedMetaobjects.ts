@@ -34,7 +34,14 @@ async function main() {
   ): Promise<string> {
     const res = await shopifyAdminGraphQL(UPSERT, {
       handle: { type, handle },
-      metaobject: { fields },
+      metaobject: {
+        capabilities: {
+          publishable: {
+            status: 'ACTIVE',
+          },
+        },
+        fields,
+      },
     });
     const mo = res?.data?.metaobjectUpsert?.metaobject;
     const errs = res?.data?.metaobjectUpsert?.userErrors;

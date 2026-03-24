@@ -150,6 +150,11 @@ async function upsertMeasurementGuide(guide) {
   const variables = {
     handle: guide.handle,
     metaobject: {
+      capabilities: {
+        publishable: {
+          status: 'ACTIVE'
+        }
+      },
       fields: [
         { key: 'category', value: guide.category },
         { key: 'fields', value: guide.fields },

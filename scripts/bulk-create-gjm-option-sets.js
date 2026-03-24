@@ -234,6 +234,11 @@ async function upsertOptionSet(optionSet) {
       handle: optionSet.handle,
     },
     metaobject: {
+      capabilities: {
+        publishable: {
+          status: 'ACTIVE'
+        }
+      },
       fields: [
         { key: 'title', value: optionSet.title },
         { key: 'category', value: optionSet.category },

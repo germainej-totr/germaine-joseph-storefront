@@ -86,6 +86,9 @@ async function createMetafieldDefinition(definition) {
       description: definition.description,
       type: definition.type,
       ownerType: 'PRODUCT',
+      access: {
+        storefront: 'PUBLIC_READ',
+      },
       validations: definition.validations,
     },
   };

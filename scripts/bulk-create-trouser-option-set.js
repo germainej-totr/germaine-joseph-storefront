@@ -85,6 +85,11 @@ async function upsertOptionSet() {
       handle: TROUSER_OPTION_SET.handle,
     },
     metaobject: {
+      capabilities: {
+        publishable: {
+          status: 'ACTIVE'
+        }
+      },
       fields: [
         { key: 'title', value: TROUSER_OPTION_SET.title },
         { key: 'category', value: TROUSER_OPTION_SET.category },

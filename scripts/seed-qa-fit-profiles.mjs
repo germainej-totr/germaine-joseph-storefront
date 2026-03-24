@@ -67,6 +67,57 @@ const QA_PROFILES = [
   },
 ];
 
+function parseArgs(argv) {
+  const args = { _: [] };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const value = argv[index];
+    if (!value.startsWith('--')) {
+      args._.push(value);
+      continue;
+    }
+
+    const [rawKey, rawInlineValue] = value.slice(2).split('=');
+    const key = rawKey.trim();
+    const nextValue = rawInlineValue ?? argv[index + 1];
+
+    if (rawInlineValue === undefined && argv[index + 1] && !argv[index + 1].startsWith('--')) {
+      args[key] = argv[index + 1];
+      index += 1;
+    } else {
+      args[key] = rawInlineValue ?? true;
+    }
+  }
+
+  return args;
+}
+
+function buildSingleScenarioProfile(scenarioId, email) {
+  if (scenarioId === '2') {
+    return {
+      key: 'scenario-2-real-email',
+      email,
+      profile_name: 'QA Scenario 2 - Saved Fit Eligible',
+      updatedAtOverride: null,
+      scenario: 'Scenario 2: Saved Fit Eligible',
+      description: 'Profile < 6 months old for the supplied email.',
+    };
+  }
+
+  if (scenarioId === '3') {
+    return {
+      key: 'scenario-3-real-email',
+      email,
+      profile_name: 'QA Scenario 3 - Refit Recommended',
+      updatedAtOverride: sevenMonthsAgo(),
+      scenario: 'Scenario 3: Refit Recommended',
+      description: 'Profile > 6 months old for the supplied email.',
+    };
+  }
+
+  throw new Error('Unsupported scenario. Use 2 or 3.');
+}
+
 // =============================================================================
 // COMMANDS
 // =============================================================================
@@ -119,6 +170,48 @@ async function seedProfiles() {
   }
 
   return results;
+}
+
+async function seedSingleProfile(scenarioId, email) {
+  const profile = buildSingleScenarioProfile(scenarioId, email.toLowerCase());
+
+  console.log(`\n🌱 Seeding ${profile.scenario} for ${profile.email}...\n`);
+
+  const created = await prisma.fitProfile.upsert({
+    where: { email: profile.email },
+    update: {
+      profile_name: profile.profile_name,
+      isActive: true,
+    },
+    create: {
+      email: profile.email,
+      profile_name: profile.profile_name,
+      isActive: true,
+    },
+  });
+
+  if (profile.updatedAtOverride) {
+    await prisma.$executeRaw`
+      UPDATE "FitProfile"
+      SET "updatedAt" = ${profile.updatedAtOverride}
+      WHERE id = ${created.id}
+    `;
+  }
+
+  const final = await prisma.fitProfile.findUnique({ where: { id: created.id } });
+
+  console.log(`  ✓ ${profile.scenario}`);
+  console.log(`    Email: ${profile.email}`);
+  console.log(`    fit_profile_id: ${final.id}`);
+  console.log(`    updatedAt: ${final.updatedAt.toISOString()}`);
+  console.log('');
+  console.log('Set these cookies on the Vercel preview domain before loading the PDP:');
+  console.log(`  fit_profile_id=${final.id}`);
+  console.log('  session_id=qa-session-1');
+  console.log('  session_customer_id=qa-customer-1');
+  console.log(`  session_email=${profile.email}`);
+  console.log('');
+  console.log('These cookies are sufficient for the current gate logic because lib/auth.ts only checks presence and email match.');
 }
 
 async function showProfiles() {
@@ -179,7 +272,8 @@ async function cleanProfiles() {
 // =============================================================================
 
 async function main() {
-  const command = process.argv[2];
+  const args = parseArgs(process.argv.slice(2));
+  const command = args._[0];
 
   try {
     if (!command || command === 'seed') {
@@ -187,12 +281,19 @@ async function main() {
       console.log('─────────────────────────────────────────────────────────────');
       console.log('Run: node scripts/seed-qa-fit-profiles.mjs show');
       console.log('     → to get the cookie values for each scenario.\n');
+    } else if (command === 'seed-one') {
+      if (!args.email || !args.scenario) {
+        console.error('Usage: node scripts/seed-qa-fit-profiles.mjs seed-one --scenario 2|3 --email you@example.com');
+        process.exit(1);
+      }
+
+      await seedSingleProfile(String(args.scenario), String(args.email));
     } else if (command === 'show') {
       await showProfiles();
     } else if (command === 'clean') {
       await cleanProfiles();
     } else {
-      console.error(`Unknown command: "${command}". Use: seed | show | clean`);
+      console.error(`Unknown command: "${command}". Use: seed | seed-one | show | clean`);
       process.exit(1);
     }
   } finally {

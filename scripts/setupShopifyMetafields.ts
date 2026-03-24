@@ -86,7 +86,18 @@ async function main() {
   ];
 
   for (const definition of definitions) {
-    const metafieldRes = await shopifyAdminGraphQL(metafieldQuery, { definition });
+    const metafieldRes = await shopifyAdminGraphQL(metafieldQuery, {
+      definition: {
+        ...definition,
+        ...(definition.ownerType === 'PRODUCT'
+          ? {
+              access: {
+                storefront: 'PUBLIC_READ',
+              },
+            }
+          : {}),
+      },
+    });
     console.log(`Metafield definition result (${definition.ownerType}:${definition.namespace}.${definition.key}):`);
     console.log(JSON.stringify(metafieldRes, null, 2));
   }
