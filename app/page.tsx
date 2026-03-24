@@ -1,10 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import FitGateModal from '@/components/FitGateModal';
+import type { ProductSummary } from '@/types/fit';
+
+type HomeProduct = ProductSummary & { imageUrl?: string };
 
 export default function HomePage() {
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<HomeProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeProductTitle, setActiveProductTitle] = useState('');
@@ -54,10 +58,21 @@ export default function HomePage() {
   return (
     <main className="max-w-7xl mx-auto p-6 md:p-10">
       <header className="mb-12 border-b pb-6">
-        <h1 className="text-4xl font-serif font-medium tracking-tight text-zinc-900">
-          Tailor On The Road
-        </h1>
-        <p className="text-zinc-500 mt-2 italic">Curiosity → Desire → Booked → Sale</p>
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-4xl font-serif font-medium tracking-tight text-zinc-900">
+              Tailor On The Road
+            </h1>
+            <p className="mt-2 italic text-zinc-500">Curiosity → Desire → Booked → Sale</p>
+          </div>
+
+          <Link
+            href="/account"
+            className="inline-flex items-center justify-center rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-900 hover:text-zinc-900"
+          >
+            Account
+          </Link>
+        </div>
       </header>
 
       {/* Empty State UI */}
@@ -68,7 +83,7 @@ export default function HomePage() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
-        {products.map((product: any) => {
+        {products.map((product) => {
           const isMTM = product.mtmRequired || false;
 
           return (

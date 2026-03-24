@@ -1,16 +1,29 @@
+import Link from 'next/link';
+import type { ProductSummary } from '@/types/fit';
+
+type ShopProduct = ProductSummary & { imageUrl?: string };
+
 export default async function ShopPage() {
   // fetch products from our BFF endpoint
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/products?first=12`, {
     cache: 'no-store',
   });
   const json = await res.json();
-  const products = json.products || [];
+  const products = (json.products || []) as ShopProduct[];
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold">Shop</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold">Shop</h1>
+        <Link
+          href="/account"
+          className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-900 hover:text-zinc-900"
+        >
+          Account
+        </Link>
+      </div>
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {products.map((p: any) => (
+        {products.map((p) => (
           <a
             key={p.id}
             href={`/product/${p.handle}`}

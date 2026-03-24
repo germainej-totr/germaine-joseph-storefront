@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { FitProfileCreate } from '@/types/fit';
+import { applySessionCookies, createSessionPayload } from '@/lib/session';
 
 const prisma = new PrismaClient();
 
@@ -58,7 +59,24 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json(profile);
+    const response = NextResponse.json(profile);
+    applySessionCookies(
+      response,
+      createSessionPayload({
+        email,
+        customerId: existingProfile?.customerId || profile.customerId || '',
+      }),
+    );
+
+    response.cookies.set('fit_profile_id', profile.id, {
+      httpOnly: false,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+    });
+
+    return response;
   } catch (error) {
     console.error('Error creating/updating fit profile:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
