@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { Suspense, useMemo, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { resolvePostFitDestination } from '@/lib/fit/flow';
 import { trackFitFlowEvent } from '@/lib/analytics/trackFitFlowEvent';
@@ -11,7 +11,7 @@ const FIT_TYPE_LABELS: Record<string, string> = {
   drop_6: 'Classic Fit',
 };
 
-export default function ManualFitPage() {
+function ManualFitContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -270,5 +270,13 @@ export default function ManualFitPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ManualFitPage() {
+  return (
+    <Suspense>
+      <ManualFitContent />
+    </Suspense>
   );
 }

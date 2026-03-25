@@ -1,5 +1,7 @@
 import { db } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
 export default async function TestDBPage() {
   // 1. Fetch all fitting sessions from your SQLite database
   const sessions = await db.fittingSession.findMany({
