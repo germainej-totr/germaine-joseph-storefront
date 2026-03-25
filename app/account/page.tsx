@@ -4,6 +4,11 @@ import prisma from '@/lib/prisma';
 import AccountSessionActions from '@/components/AccountSessionActions';
 import AccountLinkForm from '@/components/AccountLinkForm';
 
+type AccountPageSearchParams = {
+  oauth?: string;
+  oauth_error?: string;
+};
+
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-zinc-100 py-3 text-sm">
@@ -13,7 +18,53 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default async function AccountPage() {
+function getOAuthNotice(searchParams: AccountPageSearchParams) {
+  const oauth = searchParams.oauth;
+  const oauthError = searchParams.oauth_error;
+
+  if (oauth === 'linked') {
+    return {
+      tone: 'success' as const,
+      title: 'Shopify sign-in complete',
+      body: 'Your Shopify account was linked and your app session is now active.',
+    };
+  }
+
+  if (oauth === 'failed') {
+    const detail = oauthError ? ` (Error: ${oauthError})` : '';
+    return {
+      tone: 'error' as const,
+      title: 'Shopify sign-in failed',
+      body: `We could not complete customer account sign-in${detail}. Please try again.`,
+    };
+  }
+
+  if (oauth === 'state_mismatch') {
+    return {
+      tone: 'error' as const,
+      title: 'Sign-in session expired',
+      body: 'The login state token no longer matched. Please start sign-in again from this page.',
+    };
+  }
+
+  if (oauth === 'missing_code_or_state') {
+    return {
+      tone: 'error' as const,
+      title: 'Incomplete sign-in response',
+      body: 'Shopify did not return the required login payload. Please try again.',
+    };
+  }
+
+  return null;
+}
+
+export default async function AccountPage({
+  searchParams,
+}: {
+  searchParams?: Promise<AccountPageSearchParams>;
+}) {
+  const resolvedSearchParams = (await searchParams) || {};
+  const oauthNotice = getOAuthNotice(resolvedSearchParams);
   let session = null;
 
   try {
@@ -59,6 +110,19 @@ export default async function AccountPage() {
           {session ? <AccountSessionActions /> : null}
         </div>
       </header>
+
+      {oauthNotice ? (
+        <section
+          className={`mb-6 rounded-2xl border px-4 py-3 text-sm ${
+            oauthNotice.tone === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+              : 'border-rose-200 bg-rose-50 text-rose-900'
+          }`}
+        >
+          <p className="font-semibold">{oauthNotice.title}</p>
+          <p className="mt-1">{oauthNotice.body}</p>
+        </section>
+      ) : null}
 
       {!session ? (
         <section className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm">
