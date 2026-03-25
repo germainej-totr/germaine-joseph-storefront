@@ -163,6 +163,15 @@ function clearStateCookie(response: NextResponse) {
   });
 }
 
+function toAccountRedirect(request: Request, oauthStatus: string, oauthError?: string) {
+  const destination = new URL('/account', getBaseUrl(request));
+  destination.searchParams.set('oauth', oauthStatus);
+  if (oauthError) {
+    destination.searchParams.set('oauth_error', oauthError);
+  }
+  return destination;
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get('code') || '';
@@ -180,7 +189,7 @@ export async function GET(request: Request) {
   }
 
   if (!code || !state) {
-    return NextResponse.redirect('/account?oauth=missing_code_or_state', 302);
+    return NextResponse.redirect(toAccountRedirect(request, 'missing_code_or_state'), 302);
   }
 
   const requestCookies = request.headers.get('cookie') || '';
@@ -191,7 +200,7 @@ export async function GET(request: Request) {
     ?.split('=')[1];
 
   if (!stateCookie || stateCookie !== state) {
-    return NextResponse.redirect('/account?oauth=state_mismatch', 302);
+    return NextResponse.redirect(toAccountRedirect(request, 'state_mismatch'), 302);
   }
 
   try {
@@ -225,7 +234,7 @@ export async function GET(request: Request) {
       data: { customerId: customer.id },
     });
 
-    const response = NextResponse.redirect('/account?oauth=linked', 302);
+    const response = NextResponse.redirect(toAccountRedirect(request, 'linked'), 302);
     clearStateCookie(response);
     applySessionCookies(
       response,
@@ -237,7 +246,8 @@ export async function GET(request: Request) {
 
     return response;
   } catch (error) {
-    const response = NextResponse.redirect('/account?oauth=failed', 302);
+    const message = error instanceof Error ? error.message : 'unknown_oauth_error';
+    const response = NextResponse.redirect(toAccountRedirect(request, 'failed', message), 302);
     clearStateCookie(response);
     console.error('[customer-account-callback] OAuth flow failed:', error);
     return response;
