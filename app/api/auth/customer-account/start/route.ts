@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { capturePostHogEvent } from '@/lib/analytics/posthogServer';
+import { consumeRateLimit, getRequestClientIp } from '@/lib/security/authHardening';
 
 const OAUTH_STATE_COOKIE = 'gjm_customer_oauth_state';
 
@@ -33,19 +34,46 @@ function getOAuthConfig(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const config = getOAuthConfig(request);
+  const clientIp = getRequestClientIp(request);
+  const rateLimit = consumeRateLimit(`auth:oauth:start:${clientIp}`, {
+    maxRequests: 30,
+    windowMs: 10 * 60 * 1000,
+  });
 
-  if (!config.authorizeUrl || !config.clientId) {
+  if (!rateLimit.allowed) {
     return NextResponse.json(
       {
         ok: false,
-        error: 'customer_account_oauth_not_configured',
-        requiredEnv: [
-          'SHOPIFY_CUSTOMER_ACCOUNT_AUTHORIZE_URL',
-          'SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID',
-          'SHOPIFY_CUSTOMER_ACCOUNT_TOKEN_URL',
-        ],
+        error: 'rate_limited',
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
       },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(rateLimit.retryAfterSeconds),
+        },
+      },
+    );
+  }
+
+  const config = getOAuthConfig(request);
+
+  if (!config.authorizeUrl || !config.clientId) {
+    const payload: Record<string, unknown> = {
+      ok: false,
+      error: 'customer_account_oauth_not_configured',
+    };
+
+    if (process.env.NODE_ENV !== 'production') {
+      payload.requiredEnv = [
+        'SHOPIFY_CUSTOMER_ACCOUNT_AUTHORIZE_URL',
+        'SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID',
+        'SHOPIFY_CUSTOMER_ACCOUNT_TOKEN_URL',
+      ];
+    }
+
+    return NextResponse.json(
+      payload,
       { status: 503 },
     );
   }

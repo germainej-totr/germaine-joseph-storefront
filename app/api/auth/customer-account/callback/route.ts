@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { applySessionCookies, createSessionPayload } from '@/lib/session';
 import { capturePostHogEvent } from '@/lib/analytics/posthogServer';
+import { consumeRateLimit, getRequestClientIp, TimeoutError, withTimeout } from '@/lib/security/authHardening';
 
 const OAUTH_STATE_COOKIE = 'gjm_customer_oauth_state';
 
@@ -173,7 +174,45 @@ function toAccountRedirect(request: Request, oauthStatus: string, oauthError?: s
   return destination;
 }
 
+function toPublicOAuthError(input: string) {
+  const allowedCodes = new Set([
+    'token_exchange_failed',
+    'token_response_missing_access_or_id_token',
+    'unable_to_resolve_customer_identity',
+    'shopify_token_exchange_timeout',
+    'shopify_identity_lookup_timeout',
+  ]);
+
+  if (allowedCodes.has(input)) {
+    return input;
+  }
+
+  return 'oauth_internal_error';
+}
+
 export async function GET(request: Request) {
+  const clientIp = getRequestClientIp(request);
+  const rateLimit = consumeRateLimit(`auth:oauth:callback:${clientIp}`, {
+    maxRequests: 60,
+    windowMs: 10 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'rate_limited',
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(rateLimit.retryAfterSeconds),
+        },
+      },
+    );
+  }
+
   const url = new URL(request.url);
   const code = url.searchParams.get('code') || '';
   const state = url.searchParams.get('state') || '';
@@ -223,19 +262,29 @@ export async function GET(request: Request) {
   }
 
   try {
-    const token = await exchangeCodeForToken({
-      tokenUrl: config.tokenUrl,
-      code,
-      clientId: config.clientId,
-      clientSecret: config.clientSecret,
-      redirectUri: config.redirectUri,
-    });
+    const token = await withTimeout(
+      () =>
+        exchangeCodeForToken({
+          tokenUrl: config.tokenUrl,
+          code,
+          clientId: config.clientId,
+          clientSecret: config.clientSecret,
+          redirectUri: config.redirectUri,
+        }),
+      9000,
+      'shopify_token_exchange_timeout',
+    );
 
-    const identity = await fetchCustomerIdentity({
-      accessToken: token.access_token,
-      idToken: token.id_token,
-      customerApiUrl: config.customerApiUrl,
-    });
+    const identity = await withTimeout(
+      () =>
+        fetchCustomerIdentity({
+          accessToken: token.access_token,
+          idToken: token.id_token,
+          customerApiUrl: config.customerApiUrl,
+        }),
+      9000,
+      'shopify_identity_lookup_timeout',
+    );
 
     const customer = await prisma.customer.upsert({
       where: { email: identity.email },
@@ -274,7 +323,8 @@ export async function GET(request: Request) {
 
     return response;
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'unknown_oauth_error';
+    const message = error instanceof TimeoutError ? error.code : error instanceof Error ? error.message : 'unknown_oauth_error';
+    const publicError = toPublicOAuthError(message);
     void capturePostHogEvent({
       event: 'gjm_auth_oauth_failure',
       distinctId: 'anon:oauth_callback',
@@ -282,12 +332,15 @@ export async function GET(request: Request) {
         source: 'gjm_auth_server',
         method: 'shopify_oauth',
         oauth_status: 'failed',
-        oauth_error: message,
+        oauth_error: publicError,
       },
     });
-    const response = NextResponse.redirect(toAccountRedirect(request, 'failed', message), 302);
+    const response = NextResponse.redirect(toAccountRedirect(request, 'failed', publicError), 302);
     clearStateCookie(response);
-    console.error('[customer-account-callback] OAuth flow failed:', error);
+    console.error('[customer-account-callback] OAuth flow failed:', {
+      error: message,
+      clientIp,
+    });
     return response;
   }
 }

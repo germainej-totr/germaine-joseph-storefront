@@ -6,6 +6,7 @@ import {
   applyEmailLinkChallengeCookie,
   createEmailLinkChallenge,
 } from '@/lib/session';
+import { consumeRateLimit, getRequestClientIp, TimeoutError, withTimeout } from '@/lib/security/authHardening';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -33,14 +34,41 @@ function generateCode() {
 }
 
 export async function POST(request: Request) {
+  const clientIp = getRequestClientIp(request);
+  const rateLimit = consumeRateLimit(`auth:link:request:${clientIp}`, {
+    maxRequests: 8,
+    windowMs: 10 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'rate_limited',
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(rateLimit.retryAfterSeconds),
+        },
+      },
+    );
+  }
+
   try {
     const body = BODY_SCHEMA.parse(await request.json());
     const email = body.email.trim().toLowerCase();
     const storeDomain = process.env.SHOPIFY_STORE_DOMAIN || 'unknown_store';
 
-    const data = await shopifyAdminGraphQL(CUSTOMER_BY_EMAIL_QUERY, {
-      query: `email:${email}`,
-    });
+    const data = await withTimeout(
+      () =>
+        shopifyAdminGraphQL(CUSTOMER_BY_EMAIL_QUERY, {
+          query: `email:${email}`,
+        }),
+      8000,
+      'shopify_customer_lookup_timeout',
+    );
 
     const graphqlErrors = data?.errors;
     if (Array.isArray(graphqlErrors) && graphqlErrors.length > 0) {
@@ -98,19 +126,24 @@ export async function POST(request: Request) {
     const code = generateCode();
     const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(' ').trim() || 'there';
 
-    const sendResult = await resend.emails.send({
-      from: resendFromAddress,
-      to: email,
-      subject: 'Your Tailor On The Road sign-in code',
-      html: `
-        <div style="font-family: Arial, sans-serif; color: #111; line-height: 1.5;">
-          <p>Hello ${fullName},</p>
-          <p>Use the code below to finish signing in to Tailor On The Road:</p>
-          <p style="font-size: 32px; font-weight: 700; letter-spacing: 0.24em; margin: 24px 0;">${code}</p>
-          <p>This code expires in 10 minutes.</p>
-        </div>
-      `,
-    });
+    const sendResult = await withTimeout(
+      () =>
+        resend.emails.send({
+          from: resendFromAddress,
+          to: email,
+          subject: 'Your Tailor On The Road sign-in code',
+          html: `
+            <div style="font-family: Arial, sans-serif; color: #111; line-height: 1.5;">
+              <p>Hello ${fullName},</p>
+              <p>Use the code below to finish signing in to Tailor On The Road:</p>
+              <p style="font-size: 32px; font-weight: 700; letter-spacing: 0.24em; margin: 24px 0;">${code}</p>
+              <p>This code expires in 10 minutes.</p>
+            </div>
+          `,
+        }),
+      10000,
+      'resend_delivery_timeout',
+    );
 
     if (sendResult.error) {
       return NextResponse.json({ ok: false, error: sendResult.error.message }, { status: 502 });
@@ -128,7 +161,15 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'unknown_error';
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ ok: false, error: 'invalid_payload' }, { status: 400 });
+    }
+
+    if (error instanceof TimeoutError) {
+      return NextResponse.json({ ok: false, error: error.code }, { status: 504 });
+    }
+
+    console.error('[auth-link-request] unexpected error', error);
+    return NextResponse.json({ ok: false, error: 'auth_link_request_failed' }, { status: 500 });
   }
 }

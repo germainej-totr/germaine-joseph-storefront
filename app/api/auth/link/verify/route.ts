@@ -8,12 +8,35 @@ import {
   parseEmailLinkChallenge,
 } from '@/lib/session';
 import { cookies } from 'next/headers';
+import { consumeRateLimit, getRequestClientIp } from '@/lib/security/authHardening';
 
 const BODY_SCHEMA = z.object({
   code: z.string().regex(/^\d{6}$/),
 });
 
 export async function POST(request: Request) {
+  const clientIp = getRequestClientIp(request);
+  const rateLimit = consumeRateLimit(`auth:link:verify:${clientIp}`, {
+    maxRequests: 20,
+    windowMs: 10 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'rate_limited',
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(rateLimit.retryAfterSeconds),
+        },
+      },
+    );
+  }
+
   try {
     const body = BODY_SCHEMA.parse(await request.json());
     const cookieStore = await cookies();
@@ -53,7 +76,11 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'unknown_error';
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ ok: false, error: 'invalid_payload' }, { status: 400 });
+    }
+
+    console.error('[auth-link-verify] unexpected error', error);
+    return NextResponse.json({ ok: false, error: 'auth_link_verify_failed' }, { status: 500 });
   }
 }
