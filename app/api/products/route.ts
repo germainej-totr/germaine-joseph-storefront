@@ -15,23 +15,46 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const firstRaw = parseInt(url.searchParams.get('first') || '12', 10);
     const first = Number.isFinite(firstRaw) ? Math.min(Math.max(firstRaw, 1), 50) : 12;
+    const collection = url.searchParams.get('collection')?.trim();
 
-    const query = `
-      query listProducts($first: Int!) {
-        products(first: $first) {
-          edges {
-            node {
-              id
-              handle
+    const query = collection
+      ? `
+          query listCollectionProducts($first: Int!, $handle: String!) {
+            collection(handle: $handle) {
               title
-              images(first: 1) { edges { node { url altText } } }
+              handle
+              products(first: $first) {
+                edges {
+                  node {
+                    id
+                    handle
+                    title
+                    images(first: 1) { edges { node { url altText } } }
+                  }
+                }
+              }
             }
           }
-        }
-      }
-    `;
+        `
+      : `
+          query listProducts($first: Int!) {
+            products(first: $first) {
+              edges {
+                node {
+                  id
+                  handle
+                  title
+                  images(first: 1) { edges { node { url altText } } }
+                }
+              }
+            }
+          }
+        `;
 
-    const response = await shopifyFetch({ query, variables: { first } });
+    const response = await shopifyFetch({
+      query,
+      variables: collection ? { first, handle: collection } : { first },
+    });
 
     let payload: any = response;
     if (response instanceof Response) {
@@ -55,7 +78,9 @@ export async function GET(req: Request) {
     }
 
     const data = payload.data ?? payload;
-    const edges = data?.products?.edges ?? [];
+    const edges = collection
+      ? data?.collection?.products?.edges ?? []
+      : data?.products?.edges ?? [];
 
     const products: ProductSummary[] = edges.map((e: any) => {
       const p = e.node;
@@ -68,7 +93,22 @@ export async function GET(req: Request) {
       };
     });
 
-    return NextResponse.json({ products }, { status: 200 });
+    if (collection && !data?.collection) {
+      return NextResponse.json(
+        { products: [], error: 'Collection not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        products,
+        collection: collection
+          ? { handle: data.collection.handle, title: data.collection.title }
+          : null,
+      },
+      { status: 200 },
+    );
   } catch (error) {
     console.error('[/api/products] Error:', error);
     return NextResponse.json(

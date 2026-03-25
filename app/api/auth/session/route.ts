@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSessionContext } from '@/lib/auth';
 import { clearSessionCookies } from '@/lib/session';
+import { getCartCookieName } from '@/lib/shopify/cart';
 
 export async function GET() {
   try {
@@ -14,6 +15,13 @@ export async function GET() {
 export async function DELETE() {
   const response = NextResponse.json({ ok: true });
   clearSessionCookies(response);
+  response.cookies.set(getCartCookieName(), '', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    expires: new Date(0),
+  });
   response.cookies.set('fit_profile_id', '', {
     httpOnly: false,
     sameSite: 'lax',

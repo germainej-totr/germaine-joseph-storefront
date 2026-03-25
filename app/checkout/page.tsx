@@ -1,14 +1,23 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { fetchShopifyCart } from '@/lib/shopify/cart';
 
-export default function CheckoutPage() {
-  // redirect immediately to Shopify checkout; placeholder URL
-  if (typeof window !== 'undefined') {
-    redirect('https://your-shop-name.myshopify.com/cart');
+export default async function CheckoutPage() {
+  try {
+    const cookieStore = await cookies();
+    const cartId = cookieStore.get('shopify_cart_id')?.value;
+
+    if (cartId) {
+      const cart = await fetchShopifyCart(cartId);
+      if (cart?.checkoutUrl) {
+        redirect(cart.checkoutUrl);
+      }
+    }
+  } catch {
+    // Fall through to cart if checkout handoff cannot be resolved.
   }
 
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold">Redirecting to Checkout...</h1>
-    </div>
-  );
+  redirect('/cart');
+
+  return null;
 }

@@ -1,24 +1,24 @@
 import type { MtmGateEventName } from '@/lib/analytics/mtmGateContract';
 
-export interface PostHogDashboardBlock {
+export interface PostHogDashboardBlock<TEvent = string> {
   key: string;
   title: string;
   insightType: 'Trends' | 'Funnel' | 'Retention';
   question: string;
-  events: MtmGateEventName[];
+  events?: TEvent[];
   formula?: string;
   breakdowns?: string[];
   filters?: Array<{ property: string; operator: string; value: string | number }>;
 }
 
-export interface PostHogDashboardPack {
+export interface PostHogDashboardPack<TEvent = string> {
   id: string;
   name: string;
   description: string;
-  blocks: PostHogDashboardBlock[];
+  blocks: PostHogDashboardBlock<TEvent>[];
 }
 
-export const MTM_GATE_DASHBOARD_PACK: PostHogDashboardPack = {
+export const MTM_GATE_DASHBOARD_PACK: PostHogDashboardPack<MtmGateEventName> = {
   id: 'gjm-mtm-gate-v1',
   name: 'GJM MTM Gate Performance',
   description:

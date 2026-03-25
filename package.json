@@ -11,7 +11,9 @@
     "start": "next start",
     "lint": "eslint",
     "qa:mtm-ui-checklist": "node scripts/posthog/mtm-ui-path-qa.mjs checklist",
-    "qa:mtm-ui-init-report": "node scripts/posthog/mtm-ui-path-qa.mjs init-report"
+    "qa:mtm-ui-init-report": "node scripts/posthog/mtm-ui-path-qa.mjs init-report",
+    "verify:analytics": "node scripts/verifyAnalyticsPipeline.mjs",
+    "seed:posthog-dashboards": "node scripts/seedPostHogDashboard.mjs"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

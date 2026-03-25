@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, usePathname } from 'next/navigation';
 import SavedFitPromptModal from '@/components/SavedFitPromptModal';
 import { trackMtmGateEvent } from '@/lib/analytics/trackMtmGateEvent';
 import type { MtmGateEventName } from '@/lib/analytics/mtmGateContract';
+import { trackNonTailorConfiguratorEvent } from '@/lib/analytics/trackNonTailorConfiguratorEvent';
 
 type EntryPath = 'full_mtm_required' | 'saved_fit_eligible' | 'refit_recommended';
 
@@ -16,6 +17,19 @@ interface GateStatusResponse {
   updatedAt: string | null;
   email?: string;
   customerId?: string;
+}
+
+interface ProductOption {
+  id?: string;
+  name: string;
+  values: string[];
+}
+
+interface ProductVariant {
+  id: string;
+  title?: string;
+  availableForSale?: boolean;
+  selectedOptions?: Array<{ name: string; value: string }>;
 }
 
 function readCookie(name: string): string | null {
@@ -40,13 +54,63 @@ export default function ProductPage() {
   const [fitProfileId, setFitProfileId] = useState<string | null>(null);
   const [gateStatus, setGateStatus] = useState<GateStatusResponse | null>(null);
   const [showSavedFitPrompt, setShowSavedFitPrompt] = useState(false);
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+  const [customNotes, setCustomNotes] = useState('');
+  const hasTrackedConfiguratorView = useRef(false);
 
   const mtmCategory =
     product?.mtm_category?.value ||
     product?.metafields?.mtm_category ||
     'unknown';
   const productType = product?.productType || mtmCategory;
-  const variantId = product?.variants?.[0]?.id as string | undefined;
+
+  const productOptions = useMemo(() => {
+    return (product?.options || []) as ProductOption[];
+  }, [product]);
+
+  const variants = useMemo(() => {
+    const rawVariants = product?.variants;
+
+    if (Array.isArray(rawVariants)) {
+      return rawVariants as ProductVariant[];
+    }
+
+    const edges = rawVariants?.edges;
+    if (Array.isArray(edges)) {
+      return edges
+        .map((edge: { node?: ProductVariant }) => edge?.node)
+        .filter((variant: ProductVariant | undefined): variant is ProductVariant => Boolean(variant));
+    }
+
+    return [] as ProductVariant[];
+  }, [product]);
+
+  const selectedVariant = useMemo(() => {
+    if (!variants.length) return null;
+    if (!productOptions.length) return variants[0] || null;
+
+    const matched = variants.find((variant) => {
+      const opts = variant.selectedOptions || [];
+      return productOptions.every((option) => {
+        const expected = selectedOptions[option.name];
+        if (!expected) return true;
+        const variantValue = opts.find((item) => item.name === option.name)?.value;
+        return variantValue === expected;
+      });
+    });
+
+    return matched || variants[0] || null;
+  }, [variants, productOptions, selectedOptions]);
+
+  const variantId = selectedVariant?.id;
+
+  const isNonTailorConfigurable = useMemo(() => {
+    const category = String(mtmCategory || '').toLowerCase();
+    if (mtmRequired) return false;
+    return category.includes('shoe') || category.includes('leather');
+  }, [mtmCategory, mtmRequired]);
+
+  const hasSoldOutSelection = selectedVariant?.availableForSale === false;
 
   useEffect(() => {
     async function boot() {
@@ -123,6 +187,21 @@ export default function ProductPage() {
   }, [handle]);
 
   useEffect(() => {
+    if (!productOptions.length) {
+      setSelectedOptions({});
+      return;
+    }
+
+    const defaults: Record<string, string> = {};
+    for (const option of productOptions) {
+      if (option.values?.length) {
+        defaults[option.name] = option.values[0];
+      }
+    }
+    setSelectedOptions(defaults);
+  }, [productOptions]);
+
+  useEffect(() => {
     if (!showSavedFitPrompt || !gateStatus) return;
 
     const eventName: MtmGateEventName =
@@ -148,6 +227,37 @@ export default function ProductPage() {
     });
   }, [showSavedFitPrompt, gateStatus, handle, productType, mtmCategory, variantId, fitProfileId]);
 
+  useEffect(() => {
+    if (!isNonTailorConfigurable || !product || loading || hasTrackedConfiguratorView.current) return;
+
+    hasTrackedConfiguratorView.current = true;
+    trackNonTailorConfiguratorEvent('gjm_non_tailor_config_view', {
+      product_handle: handle,
+      product_type: String(productType || 'unknown'),
+      mtm_category: String(mtmCategory || 'unknown'),
+      variant_id: variantId,
+      fit_profile_id: fitProfileId || undefined,
+      selected_options_count: Object.keys(selectedOptions).length,
+      custom_notes_present: Boolean(customNotes.trim()),
+      source: 'gjm_product_pdp',
+    });
+  }, [
+    isNonTailorConfigurable,
+    product,
+    loading,
+    handle,
+    productType,
+    mtmCategory,
+    variantId,
+    fitProfileId,
+    selectedOptions,
+    customNotes,
+  ]);
+
+  useEffect(() => {
+    hasTrackedConfiguratorView.current = false;
+  }, [handle]);
+
   const lastUpdatedLabel = useMemo(() => {
     if (!gateStatus?.updatedAt) return 'Unknown';
     const date = new Date(gateStatus.updatedAt);
@@ -155,11 +265,49 @@ export default function ProductPage() {
     return date.toLocaleDateString();
   }, [gateStatus?.updatedAt]);
 
-  async function addToCartWithSavedFit() {
+  async function addToCart(payload?: {
+    fitProfileId?: string | null;
+    productFlow?: 'mtm' | 'rtw' | 'configurable_non_tailor';
+    customAttributes?: Array<{ key: string; value: string }>;
+  }) {
     if (!product) return;
+    if (!variantId) {
+      alert('Unable to resolve a purchasable variant for this product.');
+      return;
+    }
 
     setAddingToCart(true);
 
+    try {
+      const response = await fetch('/api/cart/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: product.id,
+          variantId,
+          quantity: 1,
+          fitProfileId: payload?.fitProfileId,
+          productFlow: payload?.productFlow,
+          customAttributes: payload?.customAttributes,
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Failed to add to cart');
+      }
+
+      window.location.href = '/cart';
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Unable to add with saved fit: ${message}`);
+    } finally {
+      setAddingToCart(false);
+      setShowSavedFitPrompt(false);
+    }
+  }
+
+  async function addToCartWithSavedFit() {
     const profileAgeDays =
       typeof gateStatus?.profileAgeMonths === 'number'
         ? Math.round(gateStatus.profileAgeMonths * 30.4)
@@ -177,31 +325,46 @@ export default function ProductPage() {
       profile_age_days: profileAgeDays,
     });
 
-    try {
-      const response = await fetch('/api/cart/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: product.id,
-          variantId,
-          quantity: 1,
-          fitProfileId,
-        }),
-      });
+    await addToCart({
+      fitProfileId,
+      productFlow: 'mtm',
+    });
+  }
 
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || 'Failed to add to cart');
-      }
+  async function addToCartAsReadyToWear() {
+    await addToCart({
+      productFlow: 'rtw',
+    });
+  }
 
-      window.location.href = '/cart';
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      alert(`Unable to add with saved fit: ${message}`);
-    } finally {
-      setAddingToCart(false);
-      setShowSavedFitPrompt(false);
+  async function addConfigurableNonTailorToCart() {
+    const optionAttributes = Object.entries(selectedOptions)
+      .filter(([, value]) => Boolean(value))
+      .map(([name, value]) => ({
+        key: `gjm_config_option_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+        value,
+      }));
+
+    const customAttributes = [...optionAttributes];
+    if (customNotes.trim()) {
+      customAttributes.push({ key: 'gjm_custom_notes', value: customNotes.trim() });
     }
+
+    trackNonTailorConfiguratorEvent('gjm_non_tailor_config_add_to_cart', {
+      product_handle: handle,
+      product_type: String(productType || 'unknown'),
+      mtm_category: String(mtmCategory || 'unknown'),
+      variant_id: variantId,
+      fit_profile_id: fitProfileId || undefined,
+      selected_options_count: optionAttributes.length,
+      custom_notes_present: Boolean(customNotes.trim()),
+      source: 'gjm_product_pdp',
+    });
+
+    await addToCart({
+      productFlow: 'configurable_non_tailor',
+      customAttributes,
+    });
   }
 
   function startFullMtmFlow() {
@@ -230,9 +393,13 @@ export default function ProductPage() {
     window.location.href = `/configure-fit?${query.toString()}`;
   }
 
-  function handleStartCustomization() {
+  async function handleStartCustomization() {
     if (!mtmRequired) {
-      addToCartWithSavedFit();
+      if (isNonTailorConfigurable) {
+        await addConfigurableNonTailorToCart();
+      } else {
+        await addToCartAsReadyToWear();
+      }
       return;
     }
 
@@ -257,21 +424,82 @@ export default function ProductPage() {
     return <div className="p-8">Product not found</div>;
   }
 
-  const buttonLabel = mtmRequired ? 'Start Customisation' : 'Add to Cart';
+  const buttonLabel = mtmRequired
+    ? 'Start Customisation'
+    : isNonTailorConfigurable
+      ? 'Customize & Add to Cart'
+      : 'Add to Cart';
 
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold">{product.title}</h1>
       <p className="mt-4 text-gray-600">{product.description}</p>
 
+      {isNonTailorConfigurable && productOptions.length > 0 && (
+        <div className="mt-6 rounded-lg border border-zinc-200 p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">Configuration</h2>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            {productOptions.map((option) => (
+              <label key={option.name} className="flex flex-col gap-2 text-sm">
+                <span className="font-medium text-zinc-700">{option.name}</span>
+                <select
+                  value={selectedOptions[option.name] || ''}
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    trackNonTailorConfiguratorEvent('gjm_non_tailor_config_option_change', {
+                      product_handle: handle,
+                      product_type: String(productType || 'unknown'),
+                      mtm_category: String(mtmCategory || 'unknown'),
+                      variant_id: variantId,
+                      fit_profile_id: fitProfileId || undefined,
+                      option_name: option.name,
+                      option_value: nextValue,
+                      selected_options_count: Object.keys(selectedOptions).length,
+                      custom_notes_present: Boolean(customNotes.trim()),
+                      source: 'gjm_product_pdp',
+                    });
+                    setSelectedOptions((prev) => ({ ...prev, [option.name]: nextValue }));
+                  }}
+                  className="rounded border border-zinc-300 px-3 py-2"
+                >
+                  {option.values.map((value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+
+          <label className="mt-4 flex flex-col gap-2 text-sm">
+            <span className="font-medium text-zinc-700">Customization notes (optional)</span>
+            <textarea
+              value={customNotes}
+              onChange={(event) => setCustomNotes(event.target.value)}
+              className="min-h-[92px] rounded border border-zinc-300 px-3 py-2"
+              placeholder="Any finishing details, initials, or preferences for our atelier."
+            />
+          </label>
+        </div>
+      )}
+
       <div className="mt-6 flex flex-col gap-3">
         <button
           onClick={handleStartCustomization}
-          disabled={addingToCart}
+          disabled={addingToCart || !variantId || hasSoldOutSelection}
           className="rounded bg-black px-4 py-3 text-white disabled:bg-gray-400"
         >
           {addingToCart ? 'Processing...' : buttonLabel}
         </button>
+
+        {!variantId && (
+          <p className="text-sm text-red-600">No valid variant is currently available for this selection.</p>
+        )}
+
+        {hasSoldOutSelection && (
+          <p className="text-sm text-red-600">This selected configuration is currently sold out.</p>
+        )}
 
         {mtmRequired && gateStatus?.entryPath === 'full_mtm_required' && (
           <p className="text-sm text-red-600">

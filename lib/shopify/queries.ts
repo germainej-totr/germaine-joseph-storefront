@@ -14,7 +14,34 @@ export async function getProductByHandle(handle: string) {
         id
         title
         handle
+        productType
         descriptionHtml
+        options {
+          id
+          name
+          values
+        }
+        variants(first: 50) {
+          edges {
+            node {
+              id
+              title
+              availableForSale
+              selectedOptions {
+                name
+                value
+              }
+              price {
+                amount
+                currencyCode
+              }
+              image {
+                url
+                altText
+              }
+            }
+          }
+        }
         ...MTMMeta
       }
     }

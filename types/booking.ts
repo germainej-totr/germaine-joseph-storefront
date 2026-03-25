@@ -53,12 +53,14 @@ export interface BookingRecord extends BookingCreate {
 }
 
 export interface CartAddRequest {
-  productId: string;
+  productId?: string;
   variantId?: string;
   quantity: number;
+  productFlow?: 'ready_to_wear' | 'configurable_non_tailor' | 'mtm_tailored';
   fitProfileId?: string;
   mtmSpec?: MtmSpec;
   mtmOptions?: Record<string, string>;
   measurements?: Record<string, number>;
   fitGateVersion?: string;
+  customAttributes?: Record<string, string>;
 }

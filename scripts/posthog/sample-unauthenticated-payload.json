@@ -1,0 +1,13 @@
+{
+  "event_name": "gjm_gate_unauthenticated",
+  "occurred_at": "2026-03-22T00:00:00Z",
+  "product_handle": "qa-mtm-product",
+  "product_type": "suit",
+  "mtm_category": "suit",
+  "variant_id": "gid://shopify/ProductVariant/QA123",
+  "customer_id": "gid://shopify/Customer/QA123",
+  "fit_profile_id": "qa-fit-profile-123",
+  "gate_decision": "unauthenticated",
+  "gate_reason": "gjm_gate_unauthenticated",
+  "profile_age_days": 120
+}

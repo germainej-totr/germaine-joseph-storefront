@@ -6,6 +6,8 @@ import { sendOffsiteAlert } from '@/app/actions/sendOffsiteAlert';
 import { useFitHandoff } from '@/lib/trouser/useFitHandoff';
 import { buildCanonicalTrouserMtmPayload } from '@/lib/trouser/TrouserMtmPayload';
 import { addTrouserToCart } from '@/lib/shopify/ShopifyTrouserAddToCartBridge';
+import { resolvePostFitDestination } from '@/lib/fit/flow';
+import { trackFitFlowEvent } from '@/lib/analytics/trackFitFlowEvent';
 
 // THE SOURCE OF TRUTH: Data for exact block specifications
 const measurementSpecs: any = {
@@ -285,6 +287,15 @@ function FitConfiguratorContent() {
     const email = searchParams.get('email');
     const useCase = searchParams.get('primaryUseCase');
     const mode = searchParams.get('appointmentMode');
+
+    trackFitFlowEvent({
+      eventName: 'gjm_fit_flow_start',
+      flowName: 'configure',
+      email: email || undefined,
+      productHandle: searchParams.get('productHandle') || undefined,
+      variantId: searchParams.get('variantId') || undefined,
+      source: 'fit_configure_ui',
+    });
 
     if (email) {
       setUserEmail(email);
@@ -585,6 +596,16 @@ function FitConfiguratorContent() {
           if (cartResult.ok) {
             // Success: redirect to cart or checkout
             const checkoutUrl = searchParams.get('checkoutRedirectTo') || '/cart';
+            trackFitFlowEvent({
+              eventName: 'gjm_fit_flow_save_success',
+              flowName: 'configure',
+              email: userEmail,
+              fitProfileId: profile?.id,
+              productHandle: searchParams.get('productHandle') || undefined,
+              variantId,
+              destination: checkoutUrl,
+              source: 'fit_configure_ui',
+            });
             window.location.href = checkoutUrl;
             return;
           } else {
@@ -597,11 +618,34 @@ function FitConfiguratorContent() {
         }
       }
 
-      // Fallback: redirect to home page with success marker
-      window.location.href = `/?success=profile_synced&date=${selectedDate}`;
+      // Fallback: resolve next step consistently across fit flows.
+      const destination = resolvePostFitDestination(searchParams, {
+        email: userEmail,
+        defaultPath: '/fit/book',
+      });
+      trackFitFlowEvent({
+        eventName: 'gjm_fit_flow_save_success',
+        flowName: 'configure',
+        email: userEmail,
+        fitProfileId: profile?.id,
+        productHandle: searchParams.get('productHandle') || undefined,
+        variantId: searchParams.get('variantId') || undefined,
+        destination,
+        source: 'fit_configure_ui',
+      });
+      window.location.href = destination;
     } catch (error) {
       console.error('[confirmForFitting] Submission failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      trackFitFlowEvent({
+        eventName: 'gjm_fit_flow_save_failure',
+        flowName: 'configure',
+        email: userEmail,
+        productHandle: searchParams.get('productHandle') || undefined,
+        variantId: searchParams.get('variantId') || undefined,
+        errorMessage,
+        source: 'fit_configure_ui',
+      });
       alert(`Error submitting profile: ${errorMessage}`);
     } finally {
       setIsSaving(false);

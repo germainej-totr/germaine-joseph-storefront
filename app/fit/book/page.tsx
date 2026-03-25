@@ -1,9 +1,253 @@
+'use client';
+
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import type { ServiceTypeId } from '@/types/booking';
+
+const SERVICE_OPTIONS: Array<{ value: ServiceTypeId; label: string }> = [
+  { value: 'showroom', label: 'Showroom Fitting' },
+  { value: 'home_office', label: 'Home / Office Fitting' },
+  { value: 'virtual', label: 'Virtual Consultation' },
+  { value: 'video_consult', label: 'Video Consultation' },
+  { value: 'tailor_fitting', label: 'Tailor Fitting' },
+];
+
+function getMinBookingDate() {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().split('T')[0];
+}
+
+function BookFitContent() {
+  const searchParams = useSearchParams();
+  const [email, setEmail] = useState(searchParams.get('email') || '');
+  const [serviceType, setServiceType] = useState<ServiceTypeId>('showroom');
+  const [location, setLocation] = useState('');
+  const [date, setDate] = useState('');
+  const [timeSlot, setTimeSlot] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const useCase = searchParams.get('useCase') || 'Business';
+
+  useEffect(() => {
+    if (!date) {
+      setAvailableSlots([]);
+      setTimeSlot('');
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadAvailability() {
+      try {
+        setIsCheckingAvailability(true);
+        setError('');
+
+        const response = await fetch('/api/bookings/availability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, serviceType }),
+        });
+
+        const data = await response.json();
+
+        if (cancelled) return;
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load availability');
+        }
+
+        setAvailableSlots(data.availableSlots || []);
+        if (!data.availableSlots?.includes(timeSlot)) {
+          setTimeSlot('');
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : 'Failed to load availability');
+        setAvailableSlots([]);
+      } finally {
+        if (!cancelled) setIsCheckingAvailability(false);
+      }
+    }
+
+    loadAvailability();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [date, serviceType]);
+
+  const requiresAddress = useMemo(() => serviceType === 'home_office', [serviceType]);
+
+  async function submitBooking() {
+    if (!email || !date || !timeSlot) {
+      setError('Please complete email, date, and time slot.');
+      return;
+    }
+
+    if (requiresAddress && !location.trim()) {
+      setError('Address is required for home/office fittings.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setError('');
+
+      const response = await fetch('/api/bookings/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          serviceType,
+          location: location.trim() || 'Maison Showroom',
+          date,
+          timeSlot,
+          customerEmail: email,
+          notes,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Unable to confirm booking');
+      }
+
+      const params = new URLSearchParams({
+        time: timeSlot,
+        email,
+        useCase,
+      });
+      window.location.href = `/booking-confirmed?${params.toString()}`;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to confirm booking');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-[#FDFDFD] px-4 py-10 text-black">
+      <div className="mx-auto w-full max-w-2xl rounded-2xl border border-zinc-100 bg-white shadow-sm">
+        <div className="border-b border-zinc-100 px-8 py-6">
+          <h1 className="text-2xl font-serif uppercase tracking-wider">Book Your Fitting</h1>
+          <p className="mt-1 text-sm text-zinc-500">Select your preferred appointment type and schedule.</p>
+        </div>
+
+        <div className="space-y-6 px-8 py-8">
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full rounded-md border border-zinc-200 px-4 py-3 text-sm outline-none focus:border-zinc-400"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Service Type</label>
+            <select
+              value={serviceType}
+              onChange={(e) => setServiceType(e.target.value as ServiceTypeId)}
+              className="w-full rounded-md border border-zinc-200 px-4 py-3 text-sm outline-none focus:border-zinc-400"
+            >
+              {SERVICE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {requiresAddress && (
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Address</label>
+              <textarea
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Enter full address for on-location fitting"
+                className="w-full min-h-[80px] rounded-md border border-zinc-200 px-4 py-3 text-sm outline-none focus:border-zinc-400"
+              />
+            </div>
+          )}
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Date</label>
+              <input
+                type="date"
+                min={getMinBookingDate()}
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full rounded-md border border-zinc-200 px-4 py-3 text-sm outline-none focus:border-zinc-400"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Time Slot</label>
+              <div className="min-h-[46px] rounded-md border border-zinc-200 px-3 py-2">
+                {isCheckingAvailability && <p className="text-sm text-zinc-500">Checking availability...</p>}
+
+                {!isCheckingAvailability && !availableSlots.length && (
+                  <p className="text-sm text-zinc-400">Select a date to view slots</p>
+                )}
+
+                {!isCheckingAvailability && availableSlots.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {availableSlots.map((slot) => (
+                      <button
+                        type="button"
+                        key={slot}
+                        onClick={() => setTimeSlot(slot)}
+                        className={`rounded px-3 py-1 text-xs font-semibold uppercase tracking-wide border ${
+                          timeSlot === slot ? 'bg-black text-white border-black' : 'border-zinc-300 text-zinc-600 hover:border-zinc-500'
+                        }`}
+                      >
+                        {slot}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Notes (optional)</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any context for our tailoring team"
+              className="w-full min-h-[80px] rounded-md border border-zinc-200 px-4 py-3 text-sm outline-none focus:border-zinc-400"
+            />
+          </div>
+
+          {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+
+          <button
+            type="button"
+            onClick={submitBooking}
+            disabled={isSubmitting || isCheckingAvailability}
+            className="w-full rounded-sm bg-black px-4 py-4 text-xs font-bold uppercase tracking-widest text-white hover:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? 'Confirming...' : 'Confirm Booking'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BookFitPage() {
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold">Book a Fitting</h1>
-      <p className="text-gray-600">Booking scheduler placeholder.</p>
-      <p className="text-yellow-600">TODO: wire up with booking service and calendar UI</p>
-    </div>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading...</div>}>
+      <BookFitContent />
+    </Suspense>
   );
 }

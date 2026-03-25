@@ -1,5 +1,17 @@
 import { NextResponse } from 'next/server';
-import { shopifyStorefrontGraphQL } from '@/lib/shopify/storefront';
+import { getSessionContext } from '@/lib/auth';
+import prisma from '@/lib/prisma';
+import {
+  addLinesToShopifyCart,
+  createShopifyCart,
+  getCartCookieName,
+  parseCartIdFromCookieHeader,
+} from '@/lib/shopify/cart';
+
+function isRecoverableCartError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return message.includes('cart') && (message.includes('not found') || message.includes('invalid') || message.includes('does not exist'));
+}
 
 interface AddMtmTrouserRequest {
   variantId: string;
@@ -11,11 +23,51 @@ interface AddMtmTrouserRequest {
   };
 }
 
-interface ShopifyAddToCartResponse {
-  ok?: boolean;
-  cartId?: string;
-  lineItemId?: string;
-  error?: string;
+async function validateMtmTrouserOwnership(
+  customAttributes: Record<string, string>,
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const fitProfileId =
+    customAttributes.gjm_fit_profile_id ||
+    customAttributes.fit_profile_id ||
+    '';
+
+  // Some MTM payloads may be incomplete in early flows; only enforce when profile is present.
+  if (!fitProfileId) {
+    return { ok: true };
+  }
+
+  let sessionEmail = '';
+  let sessionCustomerId = '';
+
+  try {
+    const session = await getSessionContext();
+    sessionEmail = session.email;
+    sessionCustomerId = session.customerId;
+  } catch {
+    return { ok: false, status: 401, error: 'unauthorized' };
+  }
+
+  const profile = await prisma.fitProfile.findUnique({
+    where: { id: fitProfileId },
+    select: {
+      id: true,
+      email: true,
+      customerId: true,
+      isActive: true,
+    },
+  });
+
+  if (!profile || !profile.isActive) {
+    return { ok: false, status: 400, error: 'invalid_fit_profile' };
+  }
+
+  const ownedByCustomerId = !!profile.customerId && profile.customerId === sessionCustomerId;
+  const ownedByEmail = (profile.email || '').toLowerCase() === sessionEmail;
+  if (!ownedByCustomerId && !ownedByEmail) {
+    return { ok: false, status: 403, error: 'fit_profile_not_owned' };
+  }
+
+  return { ok: true };
 }
 
 /**
@@ -55,78 +107,48 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
+    const ownershipCheck = await validateMtmTrouserOwnership(customAttributes);
+    if (!ownershipCheck.ok) {
+      return NextResponse.json(
+        { ok: false, error: ownershipCheck.error },
+        { status: ownershipCheck.status },
+      );
+    }
+
     // Convert custom attributes to Shopify format
     const attributesInput = Object.entries(customAttributes).map(([key, value]) => ({
       key,
       value,
     }));
 
-    // Get or create cart token from cookies
-    const cartToken = getOrCreateCartToken(req);
+    const existingCartId = parseCartIdFromCookieHeader(req.headers.get('cookie'));
+    let cart;
 
-    // Mutation to add to cart using Storefront API
-    const addToCartMutation = `
-      mutation AddToCart($input: CartInput!) {
-        cartCreate(input: $input) {
-          cart {
-            id
-            lines(first: 1) {
-              edges {
-                node {
-                  id
-                  quantity
-                  attributes {
-                    key
-                    value
-                  }
-                }
-              }
-            }
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `;
-
-    const input = {
-      lines: [
-        {
-          merchandiseId: variantId,
+    if (existingCartId) {
+      try {
+        cart = await addLinesToShopifyCart({
+          cartId: existingCartId,
+          variantId,
           quantity,
           attributes: attributesInput,
-        },
-      ],
-    };
+        });
+      } catch (error) {
+        if (!isRecoverableCartError(error)) {
+          throw error;
+        }
 
-    const response = await shopifyStorefrontGraphQL(addToCartMutation, { input });
-
-    if (response.errors) {
-      console.error('[addMtmTrouser] GraphQL error:', response.errors);
-      return NextResponse.json(
-        { ok: false, error: response.errors[0]?.message || 'Failed to add to cart' },
-        { status: 500 },
-      );
-    }
-
-    const cart = response.data?.cartCreate?.cart;
-    const userErrors = response.data?.cartCreate?.userErrors;
-
-    if (userErrors && userErrors.length > 0) {
-      console.error('[addMtmTrouser] User errors:', userErrors);
-      return NextResponse.json(
-        { ok: false, error: userErrors[0]?.message || 'Failed to add to cart' },
-        { status: 400 },
-      );
-    }
-
-    if (!cart) {
-      return NextResponse.json(
-        { ok: false, error: 'No cart returned from Shopify' },
-        { status: 500 },
-      );
+        cart = await createShopifyCart({
+          variantId,
+          quantity,
+          attributes: attributesInput,
+        });
+      }
+    } else {
+      cart = await createShopifyCart({
+        variantId,
+        quantity,
+        attributes: attributesInput,
+      });
     }
 
     const lineItem = cart.lines?.edges?.[0]?.node;
@@ -139,7 +161,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       },
       {
         headers: {
-          'Set-Cookie': `cartToken=${cartToken}; path=/; max-age=2592000; httponly;`,
+          'Set-Cookie': `${getCartCookieName()}=${cart.id}; path=/; max-age=2592000; httponly; samesite=lax`,
         },
       },
     );
@@ -151,17 +173,4 @@ export async function POST(req: Request): Promise<NextResponse> {
       { status: 500 },
     );
   }
-}
-
-/**
- * Helper to get cart token from request cookies.
- * In a real implementation, this would create a new Shopify cart if needed.
- */
-function getOrCreateCartToken(req: Request): string {
-  const cookies = req.headers.get('cookie') || '';
-  const match = cookies.match(/cartToken=([^;]+)/);
-  if (match) return match[1];
-
-  // Generate a new cart token (in production, call Shopify API)
-  return `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
