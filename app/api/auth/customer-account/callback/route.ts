@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { applySessionCookies, createSessionPayload } from '@/lib/session';
+import { capturePostHogEvent } from '@/lib/analytics/posthogServer';
 
 const OAUTH_STATE_COOKIE = 'gjm_customer_oauth_state';
 
@@ -189,6 +190,15 @@ export async function GET(request: Request) {
   }
 
   if (!code || !state) {
+    void capturePostHogEvent({
+      event: 'gjm_auth_oauth_failure',
+      distinctId: 'anon:oauth_callback',
+      properties: {
+        source: 'gjm_auth_server',
+        method: 'shopify_oauth',
+        oauth_status: 'missing_code_or_state',
+      },
+    });
     return NextResponse.redirect(toAccountRedirect(request, 'missing_code_or_state'), 302);
   }
 
@@ -200,6 +210,15 @@ export async function GET(request: Request) {
     ?.split('=')[1];
 
   if (!stateCookie || stateCookie !== state) {
+    void capturePostHogEvent({
+      event: 'gjm_auth_oauth_failure',
+      distinctId: 'anon:oauth_callback',
+      properties: {
+        source: 'gjm_auth_server',
+        method: 'shopify_oauth',
+        oauth_status: 'state_mismatch',
+      },
+    });
     return NextResponse.redirect(toAccountRedirect(request, 'state_mismatch'), 302);
   }
 
@@ -235,6 +254,15 @@ export async function GET(request: Request) {
     });
 
     const response = NextResponse.redirect(toAccountRedirect(request, 'linked'), 302);
+    void capturePostHogEvent({
+      event: 'gjm_auth_oauth_success',
+      distinctId: identity.email,
+      properties: {
+        source: 'gjm_auth_server',
+        method: 'shopify_oauth',
+        email: identity.email,
+      },
+    });
     clearStateCookie(response);
     applySessionCookies(
       response,
@@ -247,6 +275,16 @@ export async function GET(request: Request) {
     return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown_oauth_error';
+    void capturePostHogEvent({
+      event: 'gjm_auth_oauth_failure',
+      distinctId: 'anon:oauth_callback',
+      properties: {
+        source: 'gjm_auth_server',
+        method: 'shopify_oauth',
+        oauth_status: 'failed',
+        oauth_error: message,
+      },
+    });
     const response = NextResponse.redirect(toAccountRedirect(request, 'failed', message), 302);
     clearStateCookie(response);
     console.error('[customer-account-callback] OAuth flow failed:', error);

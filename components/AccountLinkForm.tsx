@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { trackAuthEvent } from '@/lib/analytics/trackAuthEvent';
 
 type Stage = 'request' | 'verify';
 
@@ -57,8 +58,23 @@ export default function AccountLinkForm() {
 
       const payload = (await response.json()) as LinkRequestErrorPayload;
       if (!response.ok) {
-        throw new Error(describeRequestError(payload));
+        const errorMessage = describeRequestError(payload);
+        void trackAuthEvent({
+          eventName: 'gjm_auth_email_code_request_failed',
+          distinctId: email,
+          email,
+          method: 'email_code',
+          errorMessage,
+        });
+        throw new Error(errorMessage);
       }
+
+      void trackAuthEvent({
+        eventName: 'gjm_auth_email_code_requested',
+        distinctId: email,
+        email,
+        method: 'email_code',
+      });
 
       setStage('verify');
       setMessage('Verification code sent. Check your inbox and enter the six-digit code below.');
@@ -84,8 +100,23 @@ export default function AccountLinkForm() {
 
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error || 'Unable to verify code');
+        const errorMessage = payload.error || 'Unable to verify code';
+        void trackAuthEvent({
+          eventName: 'gjm_auth_email_code_verify_failed',
+          distinctId: email,
+          email,
+          method: 'email_code',
+          errorMessage,
+        });
+        throw new Error(errorMessage);
       }
+
+      void trackAuthEvent({
+        eventName: 'gjm_auth_email_code_verified',
+        distinctId: email,
+        email,
+        method: 'email_code',
+      });
 
       window.location.href = '/account';
     } catch (verifyError) {

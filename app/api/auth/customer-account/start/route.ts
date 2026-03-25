@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
+import { capturePostHogEvent } from '@/lib/analytics/posthogServer';
 
 const OAUTH_STATE_COOKIE = 'gjm_customer_oauth_state';
 
@@ -57,6 +58,15 @@ export async function GET(request: Request) {
     redirect_uri: config.redirectUri,
     scope: config.scopes,
     state,
+  });
+
+  void capturePostHogEvent({
+    event: 'gjm_auth_oauth_start',
+    distinctId: 'anon:oauth_start',
+    properties: {
+      source: 'gjm_auth_server',
+      method: 'shopify_oauth',
+    },
   });
 
   const redirectUrl = `${config.authorizeUrl}?${authorizeParams.toString()}`;

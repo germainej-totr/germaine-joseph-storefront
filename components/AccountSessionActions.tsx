@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { trackAuthEvent } from '@/lib/analytics/trackAuthEvent';
 
 export default function AccountSessionActions() {
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -11,6 +12,10 @@ export default function AccountSessionActions() {
     try {
       await fetch('/api/auth/session', {
         method: 'DELETE',
+      });
+      void trackAuthEvent({
+        eventName: 'gjm_auth_sign_out',
+        method: 'session_cookie',
       });
     } finally {
       window.location.href = '/account';
