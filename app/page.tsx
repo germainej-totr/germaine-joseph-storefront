@@ -87,7 +87,7 @@ export default function HomePage() {
           const isMTM = product.mtmRequired || false;
 
           return (
-            <div key={product.id} className="group flex flex-col border border-zinc-100 rounded-lg overflow-hidden hover:shadow-md transition-all bg-white cursor-pointer" onClick={() => openFitGate(product.title)}>
+            <div key={product.id} className="group flex flex-col border border-zinc-100 rounded-lg overflow-hidden hover:shadow-md transition-all bg-white cursor-pointer" onClick={() => isMTM ? openFitGate(product.title) : (window.location.href = `/product/${product.handle}`)}>
               <div className="aspect-[3/4] overflow-hidden bg-zinc-50">
                 <img 
                   src={product.imageUrl || 'https://via.placeholder.com/600x800'} 
@@ -109,7 +109,7 @@ export default function HomePage() {
                 <p className="text-sm text-zinc-600 mt-4 flex-grow">Click to explore fit options</p>
 
                 <button className="mt-6 w-full py-2 border border-zinc-900 text-zinc-900 text-sm font-semibold uppercase hover:bg-zinc-900 hover:text-white transition-colors">
-                  {isMTM ? 'Create Fit Profile' : 'Configure Your Fit'}
+                  {isMTM ? 'Create Fit Profile' : 'View Product'}
                 </button>
               </div>
             </div>

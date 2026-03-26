@@ -32,6 +32,18 @@ interface ProductVariant {
   selectedOptions?: Array<{ name: string; value: string }>;
 }
 
+function parseMetafieldBoolean(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value !== 'string') return false;
+
+  const normalized = value.trim().toLowerCase();
+  if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+  if (['false', '0', 'no', 'off', ''].includes(normalized)) return false;
+
+  return false;
+}
+
 function readCookie(name: string): string | null {
   const cookies = document.cookie.split(';').map((value) => value.trim());
   const found = cookies.find((cookie) => cookie.startsWith(`${name}=`));
@@ -106,9 +118,15 @@ export default function ProductPage() {
 
   const isNonTailorConfigurable = useMemo(() => {
     const category = String(mtmCategory || '').toLowerCase();
+    const normalizedProductType = String(productType || '').toLowerCase();
     if (mtmRequired) return false;
-    return category.includes('shoe') || category.includes('leather');
-  }, [mtmCategory, mtmRequired]);
+    return (
+      category.includes('shoe') ||
+      category.includes('leather') ||
+      normalizedProductType.includes('shoe') ||
+      normalizedProductType.includes('leather')
+    );
+  }, [mtmCategory, mtmRequired, productType]);
 
   const hasSoldOutSelection = selectedVariant?.availableForSale === false;
 
@@ -136,7 +154,7 @@ export default function ProductPage() {
           console.error('Product API returned null product', { handle, json });
         }
 
-        const required = nextProduct?.mtm_required?.value === 'true';
+        const required = parseMetafieldBoolean(nextProduct?.mtm_required?.value);
         setMtmRequired(required);
 
         const profileId = readCookie('fit_profile_id');
