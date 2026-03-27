@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { shopifyFetch } from '@/lib/shopify';
 
@@ -132,9 +133,11 @@ export default async function CollectionPage(props: { params: Promise<{ collecti
             >
               <div className="aspect-[4/5] overflow-hidden bg-zinc-100">
                 {product.imageUrl ? (
-                  <img
+                  <Image
                     src={product.imageUrl}
                     alt={product.title}
+                    width={640}
+                    height={800}
                     className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                   />
                 ) : (

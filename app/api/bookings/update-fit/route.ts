@@ -12,16 +12,6 @@ function pad2(value: number): string {
   return value.toString().padStart(2, '0');
 }
 
-function toCompactLocalDateTime(date: Date): string {
-  const yyyy = date.getFullYear();
-  const mm = pad2(date.getMonth() + 1);
-  const dd = pad2(date.getDate());
-  const hh = pad2(date.getHours());
-  const min = pad2(date.getMinutes());
-  const sec = pad2(date.getSeconds());
-  return `${yyyy}${mm}${dd}T${hh}${min}${sec}`;
-}
-
 function toCompactDateTimeParts(parts: {
   year: number;
   month: number;
@@ -318,12 +308,6 @@ export async function POST(request: Request) {
     });
 
     // 2. PRESERVED: Your original tailorNotes formatting
-    const tailorNotes = `
-      Silhouette: ${fitPreference} (${alert}). 
-      Physical: Issues: ${attributes?.commonIssues || 'None'}, Notes: ${attributes?.notes || 'N/A'}.
-      Style: Rise: ${preferences?.trouserRise}, Break: ${preferences?.trouserBreak}, Jacket: ${preferences?.jacketLength}.
-    `.trim();
-
     // 3. PRESERVED: Your full high-end HTML Email Template
     try {
       const tailorSend = await resend.emails.send({

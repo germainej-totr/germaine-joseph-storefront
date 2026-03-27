@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import FitGateModal from '@/components/FitGateModal';
 import type { ProductSummary } from '@/types/fit';
 import { resolveHomeProductCardFlow } from '@/lib/home-product-card-flow';
@@ -100,9 +101,11 @@ export default function HomePage() {
           return (
             <div key={product.id} className="group flex flex-col border border-zinc-100 rounded-lg overflow-hidden hover:shadow-md transition-all bg-white cursor-pointer" onClick={handleCardClick}>
               <div className="aspect-[3/4] overflow-hidden bg-zinc-50">
-                <img 
-                  src={product.imageUrl || 'https://via.placeholder.com/600x800'} 
-                  alt={product.title} 
+                <Image
+                  src={product.imageUrl || 'https://via.placeholder.com/600x800'}
+                  alt={product.title}
+                  width={600}
+                  height={800}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
               </div>

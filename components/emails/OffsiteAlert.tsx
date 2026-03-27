@@ -20,6 +20,7 @@ export const OffsiteAlertTemplate: React.FC<Readonly<OffsiteAlertProps>> = ({
   <div style={{ fontFamily: 'serif', padding: '20px' }}>
     <h1>New Fitting Request</h1>
     <p><strong>Client:</strong> {profileName}</p>
+    <p><strong>Email:</strong> {email}</p>
     <p><strong>Mode:</strong> {mode}</p>
     <p><strong>Date:</strong> {date}</p>
     <p><strong>Time:</strong> {time}</p>

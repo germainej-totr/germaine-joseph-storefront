@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import type { ProductSummary } from '@/types/fit';
 import { shopifyFetch } from '@/lib/shopify';
 
@@ -120,9 +121,11 @@ export default async function ShopPage() {
             >
               <div className="aspect-[4/5] overflow-hidden bg-zinc-100">
                 {p.imageUrl ? (
-                  <img
+                  <Image
                     src={p.imageUrl}
                     alt={p.title}
+                    width={640}
+                    height={800}
                     className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                   />
                 ) : (

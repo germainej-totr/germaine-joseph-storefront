@@ -15,11 +15,9 @@
 
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
 import { config } from 'dotenv';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(import.meta.url);
 
 // Load env vars from .env.local first, then .env
 config({ path: path.resolve(__dirname, '../.env.local') });
@@ -79,7 +77,6 @@ function parseArgs(argv) {
 
     const [rawKey, rawInlineValue] = value.slice(2).split('=');
     const key = rawKey.trim();
-    const nextValue = rawInlineValue ?? argv[index + 1];
 
     if (rawInlineValue === undefined && argv[index + 1] && !argv[index + 1].startsWith('--')) {
       args[key] = argv[index + 1];

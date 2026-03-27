@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     };
 
     return NextResponse.json(mockProfile);
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
   }
 }

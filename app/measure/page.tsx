@@ -26,7 +26,7 @@ export default function MeasurementGuide() {
       } else {
         setStatus('Connection error. Please verify the Vault is active.');
       }
-    } catch (err) {
+    } catch {
       setStatus('System error. Please try again.');
     }
   };

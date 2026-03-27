@@ -2,7 +2,7 @@
 import React, { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Check, Calendar, Mail, Scissors, Download, Share2, ArrowRight, ChevronRight } from 'lucide-react';
+import { Check, Calendar, Mail, Scissors, Download, Share2, ChevronRight } from 'lucide-react';
 
 function BookingConfirmedContent() {
   const searchParams = useSearchParams();
@@ -42,7 +42,7 @@ function BookingConfirmedContent() {
     if (navigator.share) {
       try {
         await navigator.share(shareData);
-      } catch (err) { console.log('Share cancelled'); }
+      } catch { console.log('Share cancelled'); }
     } else {
       navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
       alert("Profile link copied to clipboard");

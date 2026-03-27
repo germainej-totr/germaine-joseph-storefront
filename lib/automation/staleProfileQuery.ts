@@ -25,8 +25,6 @@ export async function findStaleProfiles(options?: {
 }) {
   const now = new Date();
   const staleThreshold = new Date(now.getTime() - LIFECYCLE_CONFIG.STALE_PROFILE_DAYS * 24 * 60 * 60 * 1000);
-  const reminderThreshold = new Date(now.getTime() - (LIFECYCLE_CONFIG.STALE_PROFILE_DAYS - LIFECYCLE_CONFIG.PREVIEW_REMINDER_DAYS) * 24 * 60 * 60 * 1000);
-  const recentInteraction = new Date(now.getTime() - LIFECYCLE_CONFIG.EXCLUDE_RECENT_INTERACTIONS * 24 * 60 * 60 * 1000);
 
   const limit = options?.limit ?? LIFECYCLE_CONFIG.MAX_REMINDERS_PER_RUN;
 

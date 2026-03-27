@@ -21,8 +21,6 @@ export interface UseFitHandoffResult {
 }
 
 export function useFitHandoff(searchParams: SearchParamsLike): UseFitHandoffResult {
-  const searchKey = searchParams.toString();
-
   return useMemo(() => {
     const resolved = resolveFitHandoff(searchParams);
 
@@ -32,5 +30,5 @@ export function useFitHandoff(searchParams: SearchParamsLike): UseFitHandoffResu
       isTrouserFlow: resolved.isTrouserFlow,
       requiresTrouserRedirect: resolved.isTrouserFlow && !resolved.snapshot,
     };
-  }, [searchKey, searchParams]);
+  }, [searchParams]);
 }

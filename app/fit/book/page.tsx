@@ -62,10 +62,9 @@ function BookFitContent() {
           throw new Error(data.error || 'Failed to load availability');
         }
 
-        setAvailableSlots(data.availableSlots || []);
-        if (!data.availableSlots?.includes(timeSlot)) {
-          setTimeSlot('');
-        }
+        const nextSlots: string[] = data.availableSlots || [];
+        setAvailableSlots(nextSlots);
+        setTimeSlot((previous) => (nextSlots.includes(previous) ? previous : ''));
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to load availability');

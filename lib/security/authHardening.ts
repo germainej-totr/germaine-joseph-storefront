@@ -12,7 +12,6 @@ type RateLimitResult = {
 type BucketStore = Map<string, number[]>;
 
 declare global {
-  // eslint-disable-next-line no-var
   var __gjm_auth_rate_limit_store: BucketStore | undefined;
 }
 

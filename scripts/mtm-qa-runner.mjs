@@ -14,13 +14,6 @@
  *   node scripts/mtm-qa-runner.mjs manual              # Show manual testing checklist
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = path.resolve(__dirname, '..');
-
 // =============================================================================
 // 5 TEST SCENARIOS
 // =============================================================================
@@ -148,12 +141,6 @@ function log(msg, type = 'info') {
   console.log(`${colors[type]}${prefix} ${msg}${colors.reset}`);
 }
 
-function writeReportFile(reportPath, content) {
-  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-  fs.writeFileSync(reportPath, content, 'utf8');
-  log(`Report saved: ${reportPath}`, 'success');
-}
-
 // =============================================================================
 // MANUAL TESTING CHECKLIST COMMAND
 // =============================================================================
@@ -165,7 +152,7 @@ function printManualChecklist() {
   console.log('╚════════════════════════════════════════════════════════════════╝');
   console.log('');
 
-  SCENARIOS.forEach((scenario, idx) => {
+  SCENARIOS.forEach((scenario) => {
     console.log(`\n${'─'.repeat(70)}`);
     console.log(`SCENARIO ${idx + 1}: ${scenario.name}`);
     console.log(`${'─'.repeat(70)}`);
@@ -298,7 +285,7 @@ function printApiTestGuide(baseUrl = 'http://localhost:3000') {
     },
   ];
 
-  tests.forEach((test, idx) => {
+  tests.forEach((test) => {
     console.log(`${'─'.repeat(70)}`);
     console.log(`${test.title}`);
     console.log(`${'─'.repeat(70)}`);

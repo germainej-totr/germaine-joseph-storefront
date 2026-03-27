@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
 import { upsertFittingSession } from "@/actions/fitting";
-import crypto from "crypto";
-
-// 1. Secret from your Shopify Partners Dashboard
-const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET || "";
 
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
-    const hmacHeader = req.headers.get("x-shopify-hmac-sha256");
 
     // 2. HMAC Verification (Keep commented out for local testing if needed)
     /*

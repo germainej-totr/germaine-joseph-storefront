@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 type CartLine = {
   id: string;
@@ -189,7 +190,13 @@ export default function CartPage() {
                   <article key={line.id} className="grid grid-cols-[72px_1fr_auto] items-center gap-4 rounded-xl border border-zinc-100 p-4">
                     <div className="h-[72px] w-[72px] overflow-hidden rounded-md bg-zinc-100">
                       {image ? (
-                        <img src={image} alt={line.merchandise?.image?.altText || title} className="h-full w-full object-cover" />
+                        <Image
+                          src={image}
+                          alt={line.merchandise?.image?.altText || title}
+                          width={72}
+                          height={72}
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center text-[10px] uppercase tracking-wider text-zinc-400">
                           No Image

@@ -240,7 +240,6 @@ function FitConfiguratorContent() {
       };
     }
 
-    const availableDays = countProductionDaysBetween(appointment, wedding);
     const productionDeadline = new Date(wedding);
     productionDeadline.setDate(productionDeadline.getDate() - logisticsDaysInternationalExpress);
 

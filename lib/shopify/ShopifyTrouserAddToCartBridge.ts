@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import type { CanonicalTrouserMtmPayload } from '@/lib/trouser/TrouserMtmPayload';
 import {
   mapCanonicalPayloadToLineItemAttributes,
-  buildTrouserLineItemInput,
 } from '@/lib/shopify/ShopifyMtmCartMapper';
 
 /**

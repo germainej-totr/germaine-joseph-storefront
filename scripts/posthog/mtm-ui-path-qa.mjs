@@ -198,7 +198,7 @@ function main() {
       } else {
         payload = JSON.parse(args.json);
       }
-    } catch (error) {
+    } catch {
       console.error('Invalid JSON payload supplied.');
       process.exit(1);
     }

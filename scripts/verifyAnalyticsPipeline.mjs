@@ -77,6 +77,8 @@ function checkFileContains(filePath, searchStrings) {
 
 console.log('\n🔍 Analytics Pipeline Verification\n');
 console.log('=' .repeat(60));
+const totalExpectedEvents = Object.values(ANALYTICS_EVENTS).reduce((sum, events) => sum + events.length, 0);
+console.log(`Expected analytics events tracked: ${totalExpectedEvents}`);
 
 // Check 1: Required files exist
 console.log('\n✓ Checking required files exist...');
