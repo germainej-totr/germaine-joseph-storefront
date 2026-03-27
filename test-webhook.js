@@ -1,5 +1,5 @@
 // test-webhook.js
-const crypto = require('crypto');
+import crypto from 'node:crypto';
 
 const secret = 'test_secret'; // Match this in your .env
 const payload = JSON.stringify({

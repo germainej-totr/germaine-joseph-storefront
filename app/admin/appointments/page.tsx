@@ -2,8 +2,23 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
+interface BookingViewModel {
+  id: string;
+  email: string;
+  technicalSpecs?: {
+    attributes?: Record<string, string>;
+    preferences?: Record<string, string>;
+  };
+  appointmentDate?: string;
+  appointmentTime?: string;
+  fitPreference?: string;
+  jacketSize?: string;
+  trouserSize?: string;
+  serviceType?: string;
+}
+
 export default function AppointmentsPage() {
-  const [bookings, setBookings] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<BookingViewModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -11,7 +26,7 @@ export default function AppointmentsPage() {
     fetch('/api/admin/get-bookings')
       .then((res) => res.json())
       .then((data) => {
-        setBookings(Array.isArray(data) ? data : []);
+        setBookings(Array.isArray(data) ? (data as BookingViewModel[]) : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));

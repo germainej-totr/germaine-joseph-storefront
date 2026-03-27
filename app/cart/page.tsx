@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 
 type CartLine = {
   id: string;
@@ -165,12 +166,12 @@ export default function CartPage() {
           {!isLoading && !error && lines.length === 0 && (
             <div className="mt-10 rounded-xl border border-zinc-100 bg-zinc-50 px-6 py-10 text-center">
               <p className="text-zinc-600">Your cart is currently empty.</p>
-              <a
+              <Link
                 href="/shop"
                 className="mt-4 inline-flex items-center justify-center rounded-sm bg-black px-5 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-zinc-900"
               >
                 Continue Shopping
-              </a>
+              </Link>
             </div>
           )}
 

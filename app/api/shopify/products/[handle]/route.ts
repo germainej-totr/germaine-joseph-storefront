@@ -2,6 +2,7 @@
 import { getProductByHandle } from "@/lib/shopify/queries";
 import { handleApiError } from "@/lib/api-utils";
 import { apiResponse } from "@/lib/utils";
+import { parseMetafieldBoolean } from "@/lib/metafield";
 import { z } from "zod";
 
 const paramsSchema = z.object({ handle: z.string() });
@@ -19,6 +20,10 @@ export async function GET(
 
     // 3. Data Fetching via Query Orchestrator
     const product = await getProductByHandle(handle);
+    const typedProduct = product as {
+      mtm_required?: { value?: unknown };
+      mtm_category?: { value?: string };
+    };
     
     // 4. Handle Empty State
     if (!product) {
@@ -29,8 +34,8 @@ export async function GET(
     return apiResponse({
       product,
       mtm: {
-        required: product.mtm_required?.value === "true",
-        category: product.mtm_category?.value,
+        required: parseMetafieldBoolean(typedProduct.mtm_required?.value),
+        category: typedProduct.mtm_category?.value,
       }
     });
 

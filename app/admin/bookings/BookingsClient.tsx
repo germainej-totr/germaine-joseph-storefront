@@ -2,8 +2,17 @@
 
 import { calculateFitConfidence } from '@/lib/fit-logic';
 
+interface BookingRecord {
+  id: string;
+  email: string;
+  serviceType?: string;
+  startAt: string | Date;
+  location?: unknown;
+  fitProfile?: Record<string, unknown> | null;
+}
+
 interface BookingsClientProps {
-  initialBookings: any[];
+  initialBookings: BookingRecord[];
 }
 
 export default function BookingsClient({ initialBookings }: BookingsClientProps) {
@@ -38,6 +47,13 @@ export default function BookingsClient({ initialBookings }: BookingsClientProps)
               {initialBookings.map((b) => {
                 // Confidence logic uses the real fitProfile data from the database
                 const confidence = b.fitProfile ? calculateFitConfidence(b.fitProfile) : 0;
+                const city =
+                  typeof b.location === 'object' &&
+                  b.location !== null &&
+                  'city' in b.location &&
+                  typeof (b.location as { city?: unknown }).city === 'string'
+                    ? ((b.location as { city?: string }).city ?? 'Melbourne')
+                    : 'Melbourne';
                 
                 return (
                   <tr key={b.id} className="hover:bg-zinc-50/50 transition-colors group">
@@ -47,7 +63,7 @@ export default function BookingsClient({ initialBookings }: BookingsClientProps)
                     </td>
                     <td className="px-8 py-6">
                       <div className="text-sm font-medium text-zinc-800">{b.serviceType}</div>
-                      <div className="text-xs text-zinc-500">{b.location?.city || 'Melbourne'}</div>
+                      <div className="text-xs text-zinc-500">{city}</div>
                     </td>
                     <td className="px-8 py-6">
                       <div className="text-sm font-medium text-zinc-800">

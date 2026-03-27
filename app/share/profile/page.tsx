@@ -1,12 +1,19 @@
 'use client';
 import React, { useEffect, useState, Suspense } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Ruler, ShieldCheck, Scissors, Loader2 } from 'lucide-react';
+import { ShieldCheck, Loader2 } from 'lucide-react';
+
+interface SharedProfileData {
+  jacketSize?: string;
+  trouserSize?: string;
+  fitPreference?: string;
+}
 
 function SharedProfileContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<SharedProfileData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,27 +59,27 @@ function SharedProfileContent() {
           <div className="grid grid-cols-3 gap-4 py-10 border-y border-zinc-100">
             <div className="text-center">
               <p className="text-[9px] text-zinc-400 uppercase font-bold mb-1">Jacket</p>
-              <p className="text-3xl font-serif">{data.jacketSize}</p>
+              <p className="text-3xl font-serif">{data?.jacketSize || '-'}</p>
             </div>
             <div className="text-center border-x border-zinc-100">
               <p className="text-[9px] text-zinc-400 uppercase font-bold mb-1">Trouser</p>
-              <p className="text-3xl font-serif">{data.trouserSize}</p>
+              <p className="text-3xl font-serif">{data?.trouserSize || '-'}</p>
             </div>
             <div className="text-center">
               <p className="text-[9px] text-zinc-400 uppercase font-bold mb-1">Intent</p>
-              <p className="text-sm font-medium mt-2">{data.fitPreference}</p>
+              <p className="text-sm font-medium mt-2">{data?.fitPreference || '-'}</p>
             </div>
           </div>
 
           {/* Engagement Footer */}
           <div className="space-y-6 text-center">
             <p className="text-xs text-zinc-500 italic">
-              "The fit is the foundation. The rest is merely decoration."
+              &quot;The fit is the foundation. The rest is merely decoration.&quot;
             </p>
             <div className="pt-6">
-               <a href="/" className="inline-block border border-black px-8 py-3 text-[10px] font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-all">
+              <Link href="/" className="inline-block border border-black px-8 py-3 text-[10px] font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-all">
                   Book Your Own Fitting
-               </a>
+              </Link>
             </div>
           </div>
         </div>

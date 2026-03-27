@@ -5,8 +5,11 @@ import { Ruler, ChevronRight, ChevronLeft, CheckCircle, Loader2 } from 'lucide-r
 import { resolvePostFitDestination } from '@/lib/fit/flow';
 import { trackFitFlowEvent } from '@/lib/analytics/trackFitFlowEvent';
 
+type BlockMeasurements = Record<string, number>;
+type BlockSizeMap = Record<string, BlockMeasurements>;
+
 // ─── Measurement block specs (source of truth: same as configure-fit) ────────
-const measurementSpecs: Record<string, { jacket: Record<string, any>; trouser: Record<string, any> }> = {
+const measurementSpecs: Record<string, { jacket: BlockSizeMap; trouser: BlockSizeMap }> = {
   drop_8: {
     jacket: {
       '46': { back_length: 73.3, shoulders: 44.0, half_waist: 45.5 },
@@ -56,7 +59,7 @@ function normalizeToEvenUp(n: number) {
   return n % 2 === 0 ? n : n + 1;
 }
 
-function resolveSize(requested: number, table: Record<string, any> | undefined): number | null {
+function resolveSize(requested: number, table: BlockSizeMap | undefined): number | null {
   const sizes = Object.keys(table ?? {})
     .map(Number)
     .filter(Number.isFinite)

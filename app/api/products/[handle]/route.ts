@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ProductDetail } from '@/types/fit';
 import { getProductByHandle } from '@/lib/shopify/queries';
 
 export async function GET(

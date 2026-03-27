@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 
 export async function POST(req: Request) {
   try {
-    const { email, configId, block, data } = await req.json();
+    const { email, configId, block, data } = (await req.json()) as {
+      email: string;
+      configId: string;
+      block: string;
+      data: Record<string, unknown>;
+    };
 
     // 1. Find or Create the Master Profile
     const profile = await prisma.fitProfile.upsert({
@@ -26,7 +32,7 @@ export async function POST(req: Request) {
         version: 1, // We could increment this later for history
         data: {
           blockUsed: block,
-          measurements: data,
+          measurements: data as Prisma.InputJsonValue,
           timestamp: new Date().toISOString()
         }
       }
@@ -39,8 +45,11 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true, record: newFitting });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Vault Save Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
   }
 }

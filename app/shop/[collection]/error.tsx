@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 interface CollectionErrorProps {
   error: Error;
   reset: () => void;
@@ -21,12 +23,12 @@ export default function CollectionError({ error, reset }: CollectionErrorProps) 
           >
             Retry
           </button>
-          <a
+          <Link
             href="/shop"
             className="rounded-sm border border-zinc-300 px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-700 hover:border-zinc-900 hover:text-zinc-900"
           >
             All Collections
-          </a>
+          </Link>
         </div>
       </div>
     </div>

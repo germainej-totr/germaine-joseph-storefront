@@ -4,7 +4,7 @@
  * Ensures consistent formatting for MTM attributes before 
  * they hit the Shopify Cart (which requires JSON strings)
  */
-export function formatMtmAttributes(data: Record<string, any>) {
+export function formatMtmAttributes(data: Record<string, unknown>) {
   return JSON.stringify(data);
 }
 

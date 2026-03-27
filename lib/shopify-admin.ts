@@ -1,6 +1,21 @@
 // lib/shopify-admin.ts
 
 export async function getMeasurementGuide(category: string) {
+  interface AdminMetaobjectField {
+    key: string;
+    value: string;
+  }
+
+  interface AdminMetaobjectResponse {
+    data?: {
+      metaobjects?: {
+        nodes?: Array<{
+          fields?: AdminMetaobjectField[];
+        }>;
+      };
+    };
+  }
+
   const query = `
     query GetMeasurementGuide($type: String!) {
       metaobjects(type: $type, first: 1) {
@@ -26,12 +41,11 @@ export async function getMeasurementGuide(category: string) {
     }),
   });
 
-  const { data } = await response.json();
+  const { data } = (await response.json()) as AdminMetaobjectResponse;
+  const fields = data?.metaobjects?.nodes?.[0]?.fields ?? [];
   
   // Find the field that matches your category (e.g., 'jacket_rules')
-  const guideField = data.metaobjects.nodes[0]?.fields.find(
-    (f: any) => f.key === `${category}_rules`
-  );
+  const guideField = fields.find((field) => field.key === `${category}_rules`);
 
   return guideField ? JSON.parse(guideField.value) : null;
 }

@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 interface ShopErrorProps {
   error: Error;
   reset: () => void;
@@ -21,12 +23,12 @@ export default function ShopError({ error, reset }: ShopErrorProps) {
           >
             Retry
           </button>
-          <a
+          <Link
             href="/"
             className="rounded-sm border border-zinc-300 px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-700 hover:border-zinc-900 hover:text-zinc-900"
           >
             Back Home
-          </a>
+          </Link>
         </div>
       </div>
     </div>

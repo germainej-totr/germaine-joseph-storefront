@@ -8,7 +8,7 @@ export interface GJOptionSet {
   version: string;
   options: GJOption[];
   defaultConfig?: Record<string, string>;
-  pricingRules?: Record<string, any>;
+  pricingRules?: Record<string, unknown>;
 }
 
 export interface GJOption {
@@ -20,7 +20,7 @@ export interface GJOption {
   choices: GJChoice[];
   uiHint?: string;
   dependsOn?: Record<string, string>;
-  validation?: Record<string, any>;
+  validation?: Record<string, unknown>;
 }
 
 export interface GJChoice {

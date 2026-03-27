@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { AppointmentRequest, ServiceTypeId } from '@/types/booking';
 
+type BookingConfirmPayload = Partial<AppointmentRequest> & { bookingId?: string };
+
 // Define what the parent component needs to provide
 interface BookingSearchProps {
-  onConfirm: (data: any) => void;
+  onConfirm: (data: BookingConfirmPayload) => void;
 }
 
 const SERVICES: { id: ServiceTypeId; name: string; duration: string }[] = [

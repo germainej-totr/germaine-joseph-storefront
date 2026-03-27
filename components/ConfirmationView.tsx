@@ -3,7 +3,14 @@
 import { useEffect, useState } from 'react';
 import { calculateFitConfidence } from '@/lib/fit-logic';
 
-export default function BookingConfirmation({ formData }: { formData: any }) {
+interface ConfirmationFormData {
+  body_build?: string;
+  standing_posture?: string;
+  shoulder_slope?: string;
+  [key: string]: unknown;
+}
+
+export default function BookingConfirmation({ formData }: { formData: ConfirmationFormData }) {
   const [confidence, setConfidence] = useState(0);
 
   useEffect(() => {

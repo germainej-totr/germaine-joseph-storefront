@@ -2,6 +2,36 @@ import { NextResponse } from 'next/server';
 import { ProductSummary } from '@/types/fit';
 import { shopifyFetch } from '@/lib/shopify';
 
+interface ProductImageNode {
+  url?: string;
+  altText?: string;
+}
+
+interface ProductNode {
+  id: string;
+  handle: string;
+  title: string;
+  images?: { edges?: Array<{ node?: ProductImageNode }> };
+}
+
+interface ProductsPayload {
+  data?: {
+    products?: { edges?: Array<{ node: ProductNode }> };
+    collection?: {
+      title: string;
+      handle: string;
+      products?: { edges?: Array<{ node: ProductNode }> };
+    };
+  };
+  products?: { edges?: Array<{ node: ProductNode }> };
+  collection?: {
+    title: string;
+    handle: string;
+    products?: { edges?: Array<{ node: ProductNode }> };
+  };
+  errors?: Array<{ message?: string }>;
+}
+
 function safePreview(value: unknown, max = 500) {
   try {
     return JSON.stringify(value, null, 2).slice(0, max);
@@ -56,10 +86,9 @@ export async function GET(req: Request) {
       variables: collection ? { first, handle: collection } : { first },
     });
 
-    let payload: any = response;
-    if (response instanceof Response) {
-      payload = await response.json();
-    }
+    const payload: ProductsPayload = response instanceof Response
+      ? ((await response.json()) as ProductsPayload)
+      : (response as ProductsPayload);
 
     console.log('[/api/products] payload preview:', safePreview(payload));
 
@@ -82,8 +111,8 @@ export async function GET(req: Request) {
       ? data?.collection?.products?.edges ?? []
       : data?.products?.edges ?? [];
 
-    const products: ProductSummary[] = edges.map((e: any) => {
-      const p = e.node;
+    const products: ProductSummary[] = edges.map((edge) => {
+      const p = edge.node;
       return {
         id: p.id,
         handle: p.handle,
@@ -103,7 +132,7 @@ export async function GET(req: Request) {
     return NextResponse.json(
       {
         products,
-        collection: collection
+        collection: collection && data?.collection
           ? { handle: data.collection.handle, title: data.collection.title }
           : null,
       },

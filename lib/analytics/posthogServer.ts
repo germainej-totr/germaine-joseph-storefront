@@ -15,25 +15,26 @@ function getPostHogConfig() {
 export async function capturePostHogEvent(input: PostHogCaptureInput) {
   const config = getPostHogConfig();
   if (!config.apiKey) {
-    return;
+    throw new Error('posthog_not_configured');
   }
 
-  try {
-    await fetch(`${config.host}/capture/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        api_key: config.apiKey,
-        event: input.event,
-        distinct_id: input.distinctId,
-        timestamp: input.timestamp || new Date().toISOString(),
-        properties: input.properties || {},
-      }),
-      cache: 'no-store',
-    });
-  } catch {
-    // Analytics must never break auth flow.
+  const response = await fetch(`${config.host}/capture/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      api_key: config.apiKey,
+      event: input.event,
+      distinct_id: input.distinctId,
+      timestamp: input.timestamp || new Date().toISOString(),
+      properties: input.properties || {},
+    }),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`posthog_capture_failed:${response.status}:${details}`);
   }
 }

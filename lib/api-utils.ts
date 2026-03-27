@@ -1,5 +1,6 @@
 // lib/api-utils.ts
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
 export const handleApiError = (error: unknown, message = "Internal Server Error") => {
   console.error("[API Error]:", error);
@@ -9,7 +10,7 @@ export const handleApiError = (error: unknown, message = "Internal Server Error"
   );
 };
 
-export const validateRequest = (schema: any, data: unknown) => {
+export const validateRequest = (schema: z.ZodTypeAny, data: unknown) => {
   const result = schema.safeParse(data);
   if (!result.success) {
     return { success: false, error: result.error.format() };

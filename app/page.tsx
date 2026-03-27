@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import FitGateModal from '@/components/FitGateModal';
 import type { ProductSummary } from '@/types/fit';
+import { resolveHomeProductCardFlow } from '@/lib/home-product-card-flow';
 
 type HomeProduct = ProductSummary & { imageUrl?: string };
 
@@ -84,10 +85,20 @@ export default function HomePage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
         {products.map((product) => {
-          const isMTM = product.mtmRequired || false;
+          const flow = resolveHomeProductCardFlow(product);
+          const handleCardClick = () => {
+            if (flow.action === 'open_fit_gate') {
+              openFitGate(product.title);
+              return;
+            }
+
+            if (flow.href) {
+              window.location.href = flow.href;
+            }
+          };
 
           return (
-            <div key={product.id} className="group flex flex-col border border-zinc-100 rounded-lg overflow-hidden hover:shadow-md transition-all bg-white cursor-pointer" onClick={() => isMTM ? openFitGate(product.title) : (window.location.href = `/product/${product.handle}`)}>
+            <div key={product.id} className="group flex flex-col border border-zinc-100 rounded-lg overflow-hidden hover:shadow-md transition-all bg-white cursor-pointer" onClick={handleCardClick}>
               <div className="aspect-[3/4] overflow-hidden bg-zinc-50">
                 <img 
                   src={product.imageUrl || 'https://via.placeholder.com/600x800'} 
@@ -101,15 +112,15 @@ export default function HomePage() {
                   <div>
                     <h2 className="text-lg font-semibold text-zinc-900">{product.title}</h2>
                     <p className="text-sm text-zinc-500 uppercase tracking-widest mt-1">
-                      {isMTM ? 'Custom MTM' : 'Ready to Wear'}
+                      {flow.badgeLabel}
                     </p>
                   </div>
                 </div>
 
-                <p className="text-sm text-zinc-600 mt-4 flex-grow">Click to explore fit options</p>
+                <p className="text-sm text-zinc-600 mt-4 flex-grow">{flow.helperText}</p>
 
                 <button className="mt-6 w-full py-2 border border-zinc-900 text-zinc-900 text-sm font-semibold uppercase hover:bg-zinc-900 hover:text-white transition-colors">
-                  {isMTM ? 'Create Fit Profile' : 'View Product'}
+                  {flow.ctaLabel}
                 </button>
               </div>
             </div>

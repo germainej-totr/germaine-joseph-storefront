@@ -20,6 +20,7 @@ import type {
   GJServiceType,
   MtmCategory,
 } from '../types/mtm';
+import { parseMetafieldBoolean } from './metafield';
 
 // ── Raw shape ─────────────────────────────────────────────────────────────────
 
@@ -46,7 +47,7 @@ function fNum(fields: MetaobjectField[], key: string): number {
 }
 
 function fBool(fields: MetaobjectField[], key: string): boolean {
-  return f(fields, key) === 'true';
+  return parseMetafieldBoolean(f(fields, key));
 }
 
 function fJson<T>(fields: MetaobjectField[], key: string): T | undefined {

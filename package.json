@@ -10,10 +10,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:metafield-boolean": "ts-node --esm scripts/test-metafield-boolean.ts",
+    "test:home-product-card-flow": "ts-node --esm scripts/test-home-product-card-flow.ts",
     "qa:mtm-ui-checklist": "node scripts/posthog/mtm-ui-path-qa.mjs checklist",
     "qa:mtm-ui-init-report": "node scripts/posthog/mtm-ui-path-qa.mjs init-report",
     "verify:analytics": "node scripts/verifyAnalyticsPipeline.mjs",
-    "seed:posthog-dashboards": "node scripts/seedPostHogDashboard.mjs"
+    "seed:posthog-dashboards": "node scripts/seedPostHogDashboard.mjs",
+    "repair:posthog-non-tailor-funnel": "node scripts/repairPostHogNonTailorFunnel.mjs"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

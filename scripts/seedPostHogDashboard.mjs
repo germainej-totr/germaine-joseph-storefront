@@ -157,46 +157,46 @@ if (!POSTHOG_API_KEY) {
  * Convert dashboard pack blocks to PostHog insight configurations
  */
 function blockToInsight(block) {
-  const insightTypeMap = {
-    Trends: 'TRENDS',
-    Funnel: 'FUNNELS',
-    Retention: 'RETENTION',
-  };
-
   const config = {
     name: block.title,
     description: block.question,
-    insight_type: insightTypeMap[block.insightType] || 'TRENDS',
-    display: 'LineChart',
   };
 
-  // Add events
-  if (block.events && block.events.length > 0) {
-    config.events = block.events.map((eventName) => ({
-      id: eventName,
-    }));
-  }
+  const series = (block.events || []).map((eventName) => ({
+    kind: 'EventsNode',
+    event: eventName,
+    name: eventName,
+    math: 'total',
+  }));
 
-  // Add breakdowns
-  if (block.breakdowns && block.breakdowns.length > 0) {
-    config.breakdown = block.breakdowns[0];
-    config.breakdown_type = 'event';
-  }
-
-  // Add filters
-  if (block.filters && block.filters.length > 0) {
-    config.filters = {
-      events: block.filters.map((f) => ({
-        key: f.property,
-        value: f.value,
-        operator: f.operator,
-      })),
+  if (block.insightType === 'Funnel') {
+    config.query = {
+      kind: 'FunnelsQuery',
+      series,
+      dateRange: {
+        date_from: '-30d',
+      },
+      breakdown: block.breakdowns?.[0],
     };
-  }
+  } else {
+    config.query = {
+      kind: 'TrendsQuery',
+      series,
+      dateRange: {
+        date_from: '-30d',
+      },
+      interval: 'day',
+      breakdown: block.breakdowns?.[0],
+    };
 
-  // Add formula if present
-  if (block.formula) {
-    config.formula = block.formula;
+    if (block.filters?.length) {
+      config.query.properties = block.filters.map((f) => ({
+        type: 'event',
+        key: f.property,
+        operator: f.operator,
+        value: f.value,
+      }));
+    }
   }
 
   return config;

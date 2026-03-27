@@ -57,7 +57,7 @@ export default async function DashboardPage() {
             {sessions.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                  No sessions found. Try making a test purchase or using the "Manual Session" button.
+                  No sessions found. Try making a test purchase or using the &quot;Manual Session&quot; button.
                 </td>
               </tr>
             )}

@@ -37,6 +37,20 @@ export interface ShopifyCartPayload {
   };
 }
 
+interface ShopifyGraphQLError {
+  message?: string;
+}
+
+interface ShopifyMutationResult {
+  cart?: ShopifyCartPayload;
+  userErrors?: Array<{ message?: string }>;
+}
+
+interface StorefrontResponse<T> {
+  data?: T;
+  errors?: ShopifyGraphQLError[];
+}
+
 const CART_FRAGMENT = `
   fragment CartFields on Cart {
     id
@@ -95,7 +109,7 @@ export async function fetchShopifyCart(cartId: string): Promise<ShopifyCartPaylo
     }
   `;
 
-  const response = await shopifyStorefrontGraphQL<any>(query, { cartId });
+  const response = await shopifyStorefrontGraphQL<StorefrontResponse<{ cart: ShopifyCartPayload | null }>>(query, { cartId });
 
   if (response?.errors?.length) {
     throw new Error(response.errors[0]?.message || 'Failed to fetch cart');
@@ -124,7 +138,7 @@ export async function createShopifyCart(input: {
     }
   `;
 
-  const response = await shopifyStorefrontGraphQL<any>(mutation, {
+  const response = await shopifyStorefrontGraphQL<StorefrontResponse<{ cartCreate: ShopifyMutationResult }>>(mutation, {
     input: {
       lines: [
         {
@@ -171,7 +185,7 @@ export async function addLinesToShopifyCart(input: {
     }
   `;
 
-  const response = await shopifyStorefrontGraphQL<any>(mutation, {
+  const response = await shopifyStorefrontGraphQL<StorefrontResponse<{ cartLinesAdd: ShopifyMutationResult }>>(mutation, {
     cartId: input.cartId,
     lines: [
       {
@@ -216,7 +230,7 @@ export async function updateShopifyCartLine(input: {
     }
   `;
 
-  const response = await shopifyStorefrontGraphQL<any>(mutation, {
+  const response = await shopifyStorefrontGraphQL<StorefrontResponse<{ cartLinesUpdate: ShopifyMutationResult }>>(mutation, {
     cartId: input.cartId,
     lines: [{ id: input.lineId, quantity: input.quantity }],
   });
@@ -254,7 +268,7 @@ export async function removeShopifyCartLine(input: {
     }
   `;
 
-  const response = await shopifyStorefrontGraphQL<any>(mutation, {
+  const response = await shopifyStorefrontGraphQL<StorefrontResponse<{ cartLinesRemove: ShopifyMutationResult }>>(mutation, {
     cartId: input.cartId,
     lineIds: [input.lineId],
   });

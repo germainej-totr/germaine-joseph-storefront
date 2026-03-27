@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TrouserDesignConfigurator, {
   type TrouserSelections,
@@ -49,15 +49,13 @@ export default function TrouserConfiguratorController({
     [initialSelections, optionSet],
   );
 
-  const [selections, setSelections] = useState<TrouserSelections>(seededInitial);
-
-  useEffect(() => {
+  const [selections, setSelections] = useState<TrouserSelections>(() => {
     const draft = loadDraftTrouserDesign();
-    if (!draft?.payload?.selections) return;
+    if (!draft?.payload?.selections) return seededInitial;
 
     const normalized = normalizeTrouserSelections(draft.payload.selections, optionSet);
-    setSelections(normalized.selections);
-  }, [optionSet]);
+    return normalized.selections;
+  });
 
   const visibleOptions = useMemo(
     () => getVisibleOptions(selections, optionSet),

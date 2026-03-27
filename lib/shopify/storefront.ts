@@ -1,7 +1,4 @@
 // lib/shopify/storefront.ts
-import { ShopifyProduct } from "@/types/shopify";
-
-// lib/shopify/storefront.ts
 const DOMAIN = process.env.SHOPIFY_STORE_DOMAIN!;
 const TOKEN = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN!;
 
@@ -35,7 +32,7 @@ export async function shopifyFetch<T>({
  * Utility for Storefront API GraphQL queries (read-only, client-facing operations).
  * Returns raw response with potential errors; caller handles error handling.
  */
-export async function shopifyStorefrontGraphQL<T = any>(
+export async function shopifyStorefrontGraphQL<T = unknown>(
   query: string,
   variables?: Record<string, unknown>,
 ): Promise<T> {

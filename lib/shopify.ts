@@ -13,7 +13,7 @@ export async function shopifyFetch({
   variables = {},
 }: {
   query: string;
-  variables?: any;
+  variables?: Record<string, unknown>;
 }) {
   const domain = normalizeShopDomain(process.env.SHOPIFY_STORE_DOMAIN);
   const accessToken = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
@@ -89,7 +89,10 @@ async function adminRequest(path: string, options: RequestInit = {}) {
   return res.json();
 }
 
-export async function shopifyAdminGraphQL(query: string, variables?: Record<string, any>) {
+export async function shopifyAdminGraphQL(
+  query: string,
+  variables?: Record<string, unknown>,
+) {
   return adminRequest('/graphql.json', {
     method: 'POST',
     body: JSON.stringify({ query, variables }),

@@ -6,6 +6,7 @@ import SavedFitPromptModal from '@/components/SavedFitPromptModal';
 import { trackMtmGateEvent } from '@/lib/analytics/trackMtmGateEvent';
 import type { MtmGateEventName } from '@/lib/analytics/mtmGateContract';
 import { trackNonTailorConfiguratorEvent } from '@/lib/analytics/trackNonTailorConfiguratorEvent';
+import { parseMetafieldBoolean } from '@/lib/metafield';
 
 type EntryPath = 'full_mtm_required' | 'saved_fit_eligible' | 'refit_recommended';
 
@@ -32,16 +33,18 @@ interface ProductVariant {
   selectedOptions?: Array<{ name: string; value: string }>;
 }
 
-function parseMetafieldBoolean(value: unknown): boolean {
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'number') return value !== 0;
-  if (typeof value !== 'string') return false;
-
-  const normalized = value.trim().toLowerCase();
-  if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
-  if (['false', '0', 'no', 'off', ''].includes(normalized)) return false;
-
-  return false;
+interface ProductData {
+  id: string;
+  title?: string;
+  description?: string;
+  productType?: string;
+  options?: ProductOption[];
+  variants?: ProductVariant[] | { edges?: Array<{ node?: ProductVariant }> };
+  mtm_required?: { value?: unknown };
+  mtm_category?: { value?: string };
+  metafields?: {
+    mtm_category?: string;
+  };
 }
 
 function readCookie(name: string): string | null {
@@ -58,7 +61,7 @@ export default function ProductPage() {
   const routeHandle = Array.isArray(rawHandle) ? rawHandle[0] || '' : rawHandle || '';
   const pathHandle = decodeURIComponent((pathname || '').split('/').filter(Boolean).pop() || '');
   const handle = routeHandle || pathHandle;
-  const [product, setProduct] = useState<any>(null);
+  const [product, setProduct] = useState<ProductData | null>(null);
   const [loading, setLoading] = useState(true);
   const [addingToCart, setAddingToCart] = useState(false);
 
@@ -146,13 +149,22 @@ export default function ProductPage() {
           throw new Error(`Product API HTTP ${res.status}`);
         }
 
-        const json = await res.json();
+        const json = (await res.json()) as { product?: ProductData; data?: { productByHandle?: ProductData } };
         const nextProduct = json?.product ?? json?.data?.productByHandle ?? null;
         setProduct(nextProduct);
 
         if (!nextProduct) {
           console.error('Product API returned null product', { handle, json });
         }
+
+        const nextMtmCategory =
+          nextProduct?.mtm_category?.value ||
+          nextProduct?.metafields?.mtm_category ||
+          'unknown';
+        const nextProductType = nextProduct?.productType || nextMtmCategory;
+        const initialVariantId = Array.isArray(nextProduct?.variants)
+          ? nextProduct?.variants?.[0]?.id
+          : nextProduct?.variants?.edges?.[0]?.node?.id;
 
         const required = parseMetafieldBoolean(nextProduct?.mtm_required?.value);
         setMtmRequired(required);
@@ -184,9 +196,9 @@ export default function ProductPage() {
         const decisionEvent = decisionMap[gate.reason] || decisionMap[gate.entryPath] || 'gjm_gate_full_mtm_required';
         trackMtmGateEvent(decisionEvent, {
           product_handle: handle,
-          product_type: String(productType || 'unknown'),
-          mtm_category: String(mtmCategory || 'unknown'),
-          variant_id: String(nextProduct?.variants?.[0]?.id || ''),
+          product_type: String(nextProductType || 'unknown'),
+          mtm_category: String(nextMtmCategory || 'unknown'),
+          variant_id: String(initialVariantId || ''),
           customer_id: gate.customerId,
           fit_profile_id: gate.fitProfileId || profileId || undefined,
           gate_decision: gate.entryPath,

@@ -5,7 +5,7 @@ export interface FitProfile {
   label: string;
   customerId?: string;
   email?: string;
-  categoryDefaults?: Record<MtmCategory, any>;
+  categoryDefaults?: Record<MtmCategory, unknown>;
 }
 
 export interface MeasurementSet {
@@ -20,11 +20,11 @@ export interface MeasurementSet {
 export interface FitProfileCreate {
   email?: string;
   label?: string;
-  categoryDefaults?: Record<MtmCategory, any>;
+  categoryDefaults?: Record<MtmCategory, unknown>;
   appointmentDate?: string;
   appointmentTime?: string;
   fitPreference?: string;
-  technicalSpecs?: any;
+  technicalSpecs?: Record<string, unknown>;
 }
 
 export interface ProductSummary {
@@ -37,7 +37,7 @@ export interface ProductSummary {
 
 export interface ProductDetail extends ProductSummary {
   description?: string;
-  metafields?: Record<string, any>;
+  metafields?: Record<string, unknown>;
 }
 
 /** Shape of gjm_fit.* customer metafields as read from Shopify */
@@ -59,7 +59,7 @@ export interface GJFitGateMeta {
   fit_issues?: string;
   trouser_break_preference?: string;
   trouser_rise_preference?: string;
-  current_sizes_json?: Record<string, any>;
+  current_sizes_json?: Record<string, unknown>;
   jacket_length_preference?: string;
   fit_gate_completed_at?: string;    // ISO datetime
   fit_gate_status?: string;

@@ -23,7 +23,7 @@ export default function RefitReminderEmail({
         <Container style={{ maxWidth: '600px', margin: '0 auto', backgroundColor: '#ffffff', padding: '40px' }}>
           <Section style={{ textAlign: 'center', marginBottom: '40px' }}>
             <Text style={{ fontSize: '24px', fontWeight: 'bold', color: '#000' }}>
-              It's Time for Your Fit Refresh
+              It&apos;s Time for Your Fit Refresh
             </Text>
           </Section>
 
@@ -31,7 +31,7 @@ export default function RefitReminderEmail({
             <Text>Hi {customerName},</Text>
             <Text>
               {/* This uses the MTM gate logic: if it's been 6+ months since last update, prompt re-measurement. */}
-              Your most recent fit profile was from <strong>{lastFitDate.toLocaleDateString()}</strong> — that's{' '}
+              Your most recent fit profile was from <strong>{lastFitDate.toLocaleDateString()}</strong> - that&apos;s{' '}
               <strong>{estimatedDaysSinceFit} days ago</strong>.
             </Text>
             <Text>
@@ -59,7 +59,7 @@ export default function RefitReminderEmail({
 
           <Section style={{ backgroundColor: '#f9f9f9', padding: '20px', borderRadius: '6px', marginBottom: '30px' }}>
             <Text style={{ fontSize: '14px', color: '#666' }}>
-              <strong>What to expect:</strong> Our smart fit form takes just 3–5 minutes. We'll guide you through 
+              <strong>What to expect:</strong> Our smart fit form takes just 3-5 minutes. We&apos;ll guide you through 
               jacket and trouser sizing, fabric preferences, and any custom tailoring notes. Your measurements are 
               securely stored and used only for your orders.
             </Text>

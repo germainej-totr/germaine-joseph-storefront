@@ -21,11 +21,11 @@ export async function GET() {
       sessionCount: count,
       user: testUser 
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("DEBUG_DB_ERROR:", error);
     return NextResponse.json({ 
       status: "Error", 
-      message: error.message 
+      message: error instanceof Error ? error.message : "Unknown error" 
     }, { status: 500 });
   }
 }

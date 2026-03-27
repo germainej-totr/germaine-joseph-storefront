@@ -1,10 +1,16 @@
 // app/api/measurements/route.ts
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const body = (await req.json()) as {
+      email?: string;
+      category?: string;
+      measurements?: Record<string, unknown>;
+      source?: string;
+    };
     const { email, category, measurements, source } = body;
 
     // 1. Technical Check: Ensure required data exists
@@ -29,7 +35,7 @@ export async function POST(req: Request) {
         data: {
           fitProfileId: profile.id,
           category: category || 'general',
-          data: measurements, // This saves as JSONB in Postgres
+          data: measurements as Prisma.InputJsonValue, // This saves as JSONB in Postgres
           source: source || 'web_form',
           version: 1 // In a full build, we could increment this based on previous count
         }
@@ -40,7 +46,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, data: result }, { status: 201 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Tailor Engine API Error:", error);
     return NextResponse.json({ error: "Internal Database Error" }, { status: 500 });
   }

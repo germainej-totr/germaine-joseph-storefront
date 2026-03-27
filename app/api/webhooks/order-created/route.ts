@@ -1,5 +1,6 @@
 // app/api/webhooks/order-created/route.ts
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 
 export async function POST(req: Request) {
@@ -38,11 +39,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "No measurements to attach" }, { status: 200 });
     }
 
-    const measurements = latestFit.measurements[0].data as Record<string, any>;
+    const measurements = latestFit.measurements[0].data as Record<string, unknown>;
     
     // 2. Format the measurements into a clean string for the Workshop
     const noteContent = Object.entries(measurements)
-      .map(([key, val]) => `${key.toUpperCase()}: ${val}cm`)
+      .map(([key, value]) => `${key.toUpperCase()}: ${String(value)}cm`)
       .join('\n');
 
     const workshopNote = `--- MAISON ANATOMICAL DATA ---\n${noteContent}\n----------------------------`;
@@ -72,7 +73,7 @@ export async function POST(req: Request) {
       data: {
         orderId: orderId.toString(),
         fitProfileId: latestFit.id,
-        spec: measurements,
+        spec: measurements as Prisma.InputJsonValue,
         status: shopifyResponse.ok ? "synced_to_shopify" : "db_lookup_success_shopify_fail"
       }
     });

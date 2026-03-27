@@ -1,10 +1,10 @@
 // lib/shopify/queries.ts
 import { shopifyFetch } from "./storefront";
-import { MTM_FRAGMENT, OPTIONSET_QUERY } from "./fragments";
+import { MTM_FRAGMENT } from "./fragments";
 
 // Define the shape of the Shopify response to satisfy TypeScript
 interface ShopifyProductResponse {
-  productByHandle: any; // Or define a full interface if you want strict typing
+  productByHandle: Record<string, unknown> | null;
 }
 
 export async function getProductByHandle(handle: string) {

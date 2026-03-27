@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { FitProfileCreate } from '@/types/fit';
 import { applySessionCookies, createSessionPayload } from '@/lib/session';
 
@@ -8,6 +8,13 @@ const prisma = new PrismaClient();
 type CategoryDefaultsInput = Partial<
   Record<'jacket' | 'trouser', { size?: string | null }>
 >;
+
+function toPrismaJson(value: unknown): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput {
+  if (value === null || value === undefined) {
+    return Prisma.JsonNull;
+  }
+  return value as Prisma.InputJsonValue;
+}
 
 export async function POST(req: Request) {
   try {
@@ -41,7 +48,7 @@ export async function POST(req: Request) {
           fitPreference: body.fitPreference || existingProfile.fitPreference,
           appointmentDate: body.appointmentDate || existingProfile.appointmentDate,
           appointmentTime: body.appointmentTime || existingProfile.appointmentTime,
-          technicalSpecs: body.technicalSpecs || existingProfile.technicalSpecs,
+          technicalSpecs: toPrismaJson(body.technicalSpecs ?? existingProfile.technicalSpecs),
         },
       });
     } else {
@@ -54,7 +61,7 @@ export async function POST(req: Request) {
           fitPreference: body.fitPreference || null,
           appointmentDate: body.appointmentDate || null,
           appointmentTime: body.appointmentTime || null,
-          technicalSpecs: body.technicalSpecs || null,
+          technicalSpecs: toPrismaJson(body.technicalSpecs),
         },
       });
     }

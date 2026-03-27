@@ -9,8 +9,26 @@ import { addTrouserToCart } from '@/lib/shopify/ShopifyTrouserAddToCartBridge';
 import { resolvePostFitDestination } from '@/lib/fit/flow';
 import { trackFitFlowEvent } from '@/lib/analytics/trackFitFlowEvent';
 
+type BlockMeasurements = Record<string, number>;
+type BlockSizeMap = Record<string, BlockMeasurements>;
+
+interface FitComputationResult {
+  jacketSize: number;
+  trouserSize: number;
+  jacketSpecs: Record<string, number>;
+  trouserSpecs: Record<string, number>;
+  isMismatch: boolean;
+  jacketRequested: number;
+  trouserRequested: number;
+  jacketCarryLower: number;
+  jacketCarryUpper: number;
+  trouserCarryLower: number;
+  trouserCarryUpper: number;
+  label: string;
+}
+
 // THE SOURCE OF TRUTH: Data for exact block specifications
-const measurementSpecs: any = {
+const measurementSpecs: Record<string, { jacket: BlockSizeMap; trouser: BlockSizeMap }> = {
   drop_8: {
     jacket: {
       '46': { back_length: 73.3, shoulders: 44.0, half_waist: 45.5 },
@@ -192,7 +210,7 @@ function FitConfiguratorContent() {
     jacketLength: 'Standard',
   });
 
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<FitComputationResult | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const weddingProductionValidation = useMemo(() => {

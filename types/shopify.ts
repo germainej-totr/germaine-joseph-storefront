@@ -2,7 +2,7 @@ export interface ShopifyProduct {
   id: string;
   handle: string;
   title: string;
-  metafields: any; // Used to pull GJ namespace data
+  metafields: Record<string, unknown> | null; // Used to pull GJ namespace data
 }
 
 export interface CartLineInput {

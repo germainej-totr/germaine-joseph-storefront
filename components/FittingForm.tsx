@@ -1,32 +1,40 @@
 "use client";
 
-import React, { useState, useEffect, FormEvent } from 'react';
+import React, { useState, FormEvent } from 'react';
 import { upsertFittingSession } from "@/actions/fitting";
 import { FITTING_CONFIGS, ProductionConfig, FittingField } from '@/lib/fitting-configs';
 
-export default function FittingForm({ initialData }: { initialData: any }) {
+interface FittingInitialData {
+  id?: string;
+  productionLine?: string | null;
+  jacketBaseBlock?: string | null;
+  trouserBaseBlock?: string | null;
+  masterFitType?: string | null;
+  measurements?: unknown;
+  [key: string]: unknown;
+}
+
+function normalizeMeasurements(input: unknown): Record<string, unknown> {
+  if (typeof input === 'object' && input !== null && !Array.isArray(input)) {
+    return input as Record<string, unknown>;
+  }
+  return {};
+}
+
+export default function FittingForm({ initialData }: { initialData: FittingInitialData }) {
   // --- State Management ---
   const [selectedConfigId, setSelectedConfigId] = useState(initialData?.productionLine || "");
   const [selectedJacketSize, setSelectedJacketSize] = useState(initialData?.jacketBaseBlock || "");
   const [selectedTrouserSize, setSelectedTrouserSize] = useState(initialData?.trouserBaseBlock || "");
   const [selectedFit, setSelectedFit] = useState(initialData?.masterFitType || "");
-  const [measurements, setMeasurements] = useState<Record<string, any>>(initialData?.measurements || {});
+  const [measurements, setMeasurements] = useState<Record<string, unknown>>(
+    normalizeMeasurements(initialData?.measurements)
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // --- Sync props ---
-  useEffect(() => {
-    if (initialData) {
-      setSelectedConfigId(initialData.productionLine || "");
-      setSelectedJacketSize(initialData.jacketBaseBlock || "");
-      setSelectedTrouserSize(initialData.trouserBaseBlock || "");
-      setSelectedFit(initialData.masterFitType || "");
-      setMeasurements(initialData.measurements || {});
-    }
-  }, [initialData]);
 
   const config: ProductionConfig | undefined = selectedConfigId ? FITTING_CONFIGS[selectedConfigId] : undefined;
 
-  const handleMeasurementChange = (id: string, value: any) => {
+  const handleMeasurementChange = (id: string, value: unknown) => {
     setMeasurements(prev => ({ ...prev, [id]: value }));
   };
 
@@ -113,7 +121,12 @@ export default function FittingForm({ initialData }: { initialData: any }) {
             if (f.type === 'section_break') {
               return <h2 key={f.id} className="text-xl font-semibold mt-8">{f.label}</h2>;
             }
-            const value = measurements[f.id] ?? '';
+            const rawValue = measurements[f.id];
+            const inputValue =
+              typeof rawValue === 'string' || typeof rawValue === 'number'
+                ? rawValue
+                : '';
+            const checkboxValue = Boolean(rawValue);
             switch (f.type) {
               case 'cm':
               case 'adjustment':
@@ -122,7 +135,7 @@ export default function FittingForm({ initialData }: { initialData: any }) {
                     <label className="block text-sm uppercase text-gray-700">{f.label}</label>
                     <input
                       type="number"
-                      value={value}
+                      value={inputValue}
                       min={f.min}
                       max={f.max}
                       step={f.step || (f.type === 'adjustment' ? 0.5 : 0.1)}
@@ -136,7 +149,7 @@ export default function FittingForm({ initialData }: { initialData: any }) {
                   <div key={f.id} className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={!!value}
+                      checked={checkboxValue}
                       onChange={(e) => handleMeasurementChange(f.id, e.target.checked)}
                     />
                     <label className="text-sm uppercase text-gray-700">{f.label}</label>
@@ -148,7 +161,7 @@ export default function FittingForm({ initialData }: { initialData: any }) {
                     <label className="block text-sm uppercase text-gray-700">{f.label}</label>
                     <input
                       type="text"
-                      value={value}
+                      value={inputValue}
                       onChange={(e) => handleMeasurementChange(f.id, e.target.value)}
                       className="w-full p-4 border border-gray-300 rounded-lg text-black bg-white focus:ring-2 focus:ring-black outline-none"
                     />
