@@ -19,6 +19,7 @@
     "qa:product-api-runtime": "ts-node --esm scripts/qa-product-api-contracts.ts",
     "qa:prisma-connectivity": "node scripts/qa-prisma-connectivity.mjs",
     "db:migrate:safe": "node scripts/db-migrate-safe.mjs",
+    "db:migrate:doctor": "node scripts/db-migrate-doctor.mjs",
     "qa:predeploy": "npm run qa:prisma-connectivity && npm run test:contracts && npm run lint && npm run build",
     "qa:runtime-smoke": "node scripts/runtime-smoke.mjs",
     "qa:mtm-ui-checklist": "node scripts/posthog/mtm-ui-path-qa.mjs checklist",

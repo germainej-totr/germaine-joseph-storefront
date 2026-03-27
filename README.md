@@ -46,6 +46,7 @@ Common commands:
 ```bash
 npx prisma migrate status
 npm run db:migrate:safe -- <change_name>
+npm run db:migrate:doctor
 npx prisma generate
 ```
 
@@ -54,6 +55,7 @@ Important note:
 - Do not run `npx prisma migrate resolve --applied 0_init` in normal development.
 - `0_init` is already applied in this environment, so re-resolving it returns an error by design.
 - Prefer `npm run db:migrate:safe -- <change_name>` so connectivity is checked before migrations run.
+- `db:migrate:safe` blocks reserved migration names like `init` and `0_init`; use descriptive names (for example `add_deposit_status`).
 
 ## Prisma Troubleshooting
 
@@ -86,6 +88,12 @@ If connectivity still fails:
 1. Verify `DATABASE_URL` is present in `.env` or `.env.local`
 2. Run `npx prisma migrate status` to check migration metadata
 3. Do not run `migrate resolve --applied 0_init` unless repairing migration history intentionally
+
+If migration commands are failing and you need a guided diagnostic pass:
+
+```bash
+npm run db:migrate:doctor
+```
 
 ## Learn More
 
