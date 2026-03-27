@@ -46,6 +46,17 @@ If this command passes, the current branch is considered release-ready.
 Strict mode runs migration doctor gate first (`db:migrate:doctor:gate`) and fails fast when Prisma doctor JSON reports `ok: false`.
 When used in CI (for example GitHub Actions), set a `DATABASE_URL` repository secret so Prisma connectivity and migrate-status checks can run.
 
+## Booking Lifecycle Events (Klaviyo)
+
+Booking events are emitted on confirmation/reschedule/cancel with safe fire-and-forget behavior.
+
+Set these environment variables to enable Klaviyo event delivery:
+
+- `KLAVIYO_BOOKING_EVENTS_ENABLED=true`
+- `KLAVIYO_PRIVATE_API_KEY=<your_private_api_key>`
+
+When not enabled, event emission is skipped with no impact on booking API responses.
+
 ## Prisma Workflow
 
 This project now uses Prisma config from `prisma.config.ts` (not `package.json#prisma`).

@@ -6,6 +6,7 @@ import { CONFIRM_REQUEST_SCHEMA } from '@/lib/contracts/apiSchemas';
 import { sendBookingConfirmationEmail } from '@/lib/resend';
 import { buildCalendarLinks, formatAppointmentLabel } from '@/lib/booking/calendar';
 import { getServiceTypeConfig } from '@/lib/booking/serviceTypes';
+import { emitBookingLifecycleEvent } from '@/lib/automation/bookingLifecycleEvents';
 
 export async function POST(request: Request) {
   try {
@@ -27,6 +28,20 @@ export async function POST(request: Request) {
 
     if (!result.success) {
       return NextResponse.json(result, { status: 400 });
+    }
+
+    if (result.bookingId && body.customerEmail) {
+      emitBookingLifecycleEvent('booking_confirmed', {
+        bookingId: result.bookingId,
+        email: body.customerEmail,
+        serviceType: body.serviceType,
+        date: body.date,
+        timeSlot: body.timeSlot,
+        location: body.location,
+        source: 'api/bookings/confirm',
+      }).catch((err) => {
+        console.error('booking_confirmed event emit failed:', err);
+      });
     }
 
     // Send confirmation email (fire-and-forget — never block the response)
