@@ -20,6 +20,73 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Quality Gate (Done Checklist)
+
+Run one command before push/deploy:
+
+```bash
+npm run qa:predeploy
+```
+
+This runs, in order:
+
+1. Prisma connectivity healthcheck (`qa:prisma-connectivity`)
+2. Contract regression tests (`test:contracts`)
+3. Lint (`lint`)
+4. Production build (`build`)
+
+If this command passes, the current branch is considered release-ready.
+
+## Prisma Workflow
+
+This project now uses Prisma config from `prisma.config.ts` (not `package.json#prisma`).
+
+Common commands:
+
+```bash
+npx prisma migrate status
+npm run db:migrate:safe -- <change_name>
+npx prisma generate
+```
+
+Important note:
+
+- Do not run `npx prisma migrate resolve --applied 0_init` in normal development.
+- `0_init` is already applied in this environment, so re-resolving it returns an error by design.
+- Prefer `npm run db:migrate:safe -- <change_name>` so connectivity is checked before migrations run.
+
+## Prisma Troubleshooting
+
+For transient Prisma connectivity errors (for example P1001), run:
+
+```bash
+npm run qa:prisma-connectivity
+```
+
+This checks:
+
+1. DNS resolution for the database host
+2. TCP connectivity to port 5432
+3. A non-destructive Prisma query (`SELECT 1`) via `prisma db execute`
+
+The healthcheck includes retries and supports these environment overrides:
+
+- `PRISMA_HEALTH_RETRIES` (default: `3`)
+- `PRISMA_HEALTH_RETRY_DELAY_MS` (default: `1500`)
+- `PRISMA_HEALTH_TCP_TIMEOUT_MS` (default: `5000`)
+
+Example with longer retry window:
+
+```bash
+PRISMA_HEALTH_RETRIES=6 PRISMA_HEALTH_RETRY_DELAY_MS=2000 npm run qa:prisma-connectivity
+```
+
+If connectivity still fails:
+
+1. Verify `DATABASE_URL` is present in `.env` or `.env.local`
+2. Run `npx prisma migrate status` to check migration metadata
+3. Do not run `migrate resolve --applied 0_init` unless repairing migration history intentionally
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
