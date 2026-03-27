@@ -96,7 +96,7 @@ export default async function CollectionPage(props: { params: Promise<{ collecti
             <h1 className="mt-1 text-3xl font-serif uppercase tracking-wider">{selected.title}</h1>
           </div>
           <Link
-            href="/shop"
+            href="/c"
             className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-bold uppercase tracking-widest text-zinc-700 transition hover:border-zinc-900 hover:text-zinc-900"
           >
             Back to All
@@ -105,7 +105,7 @@ export default async function CollectionPage(props: { params: Promise<{ collecti
 
         <div className="mt-6 flex flex-wrap gap-2">
           <Link
-            href="/shop"
+            href="/c"
             className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-bold uppercase tracking-widest text-zinc-700 transition hover:border-zinc-900 hover:text-zinc-900"
           >
             All
@@ -115,7 +115,7 @@ export default async function CollectionPage(props: { params: Promise<{ collecti
             return (
               <Link
                 key={entry.id}
-                href={`/shop/${entry.handle}`}
+                href={`/c/${entry.handle}`}
                 className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-widest transition ${
                   isActive
                     ? 'bg-black text-white'
@@ -132,7 +132,7 @@ export default async function CollectionPage(props: { params: Promise<{ collecti
           {products.map((product) => (
             <Link
               key={product.id}
-              href={`/product/${product.handle}`}
+              href={`/p/${product.handle}`}
               className="group block overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className="aspect-[4/5] overflow-hidden bg-zinc-100">

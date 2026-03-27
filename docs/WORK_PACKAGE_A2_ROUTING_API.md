@@ -1,18 +1,16 @@
 # Work Package A2: Routing Map, API Contracts & TypeScript Interfaces
 
-This package builds on the routing skeleton from B1 and adds explicit API
-contracts and shared TypeScript interfaces for data flowing through the BFF.
-It ties together PLP/PDP pages with backend endpoints, ensuring type safety and
-clear expectations for each service.
+This package aligns storefront routing and BFF contracts so page links,
+API handlers, and shared types all follow one stable model.
 
-## 1. Frontend route overview (same as B1)
+## 1. Frontend route contract
 
-The public-facing routes live under `/app`:
+Canonical storefront routes:
 
 ```
-/shop
-  /[collection]
-/product/[handle]
+/c
+/c/[collectionHandle]
+/p/[productHandle]
 /fit/smart
 /fit/manual
 /fit/book
@@ -20,79 +18,107 @@ The public-facing routes live under `/app`:
 /checkout
 ```
 
-Each page will fetch data from corresponding API endpoints documented below.
+Compatibility routes kept active during migration:
+
+```
+/shop
+/shop/[collection]
+/product/[handle]
+```
+
+Current status:
+
+- Canonical link generation now uses `/c/*` and `/p/*` in primary storefront flows.
+- Legacy `/shop/*` and `/product/*` routes remain live to avoid breakage.
+- Recovery and product entry should route through canonical `/p/*` product pages.
 
 ## 2. API endpoint contracts
 
 ### `GET /api/products` (PLP)
+
 - Query params: `collection?`, `first?`, `after?`
 - Response: `{ products: ProductSummary[] }`
 
 ### `GET /api/products/[handle]` (PDP)
+
 - Path param: `handle`
-- Response: `{ product: ProductDetail }`
+- Response: `{ product: ProductDetail | null }`
 
 ### `POST /api/fit/profile` (create/update fit profile)
+
 - Body: `FitProfileCreate`
 - Response: `FitProfile`
 
 ### `GET /api/fit/profile/[id]` (fetch profile)
+
 - Path param: `id`
 - Response: `FitProfile`
 
 ### `POST /api/bookings/availability` (search slots)
-- Body: `AvailabilityRequest`
+
+- Body: `{ date: string; serviceType?: ServiceTypeId }`
 - Response: `AvailabilityResponse`
 
-### `POST /api/bookings` (create booking)
-- Body: `BookingCreate`
-- Response: `BookingRecord`
+### `POST /api/bookings/confirm` (create booking)
+
+- Body: `AppointmentRequest`
+- Response: `{ success: boolean; bookingId?: string; message: string }`
+
+### `GET /api/bookings/service-types` (booking catalog)
+
+- Response: `{ serviceTypes: ServiceTypeOption[] }`
+- Source of truth: `gjm_service_type` metaobjects with safe fallback defaults.
 
 ### `GET /api/cart` (fetch cart data)
-- Returns the current Shopify cart object via storefront token/cookie.
 
-### `POST /api/cart/add` (add item)
-- Body: `CartAddRequest` including `fit_profile_id` and `mtm_spec` properties.
+- Returns current Shopify cart object via storefront token/cookie.
 
-## 3. TypeScript interfaces (in `types/` folder)
+### `POST /api/cart/add` (generic add)
 
-Add or extend interfaces for:
+- Body: `CartAddRequest`
+- Writes normalized `gjm_*` line item attributes for MTM payloads.
 
-- `ProductSummary` (used by PLP)
-- `ProductDetail` (PDP plus MTM metadata)
-- `MtmSpec` (immutable snapshot)
+### `POST /api/cart/add-mtm-trouser` (trouser MTM add)
+
+- Body: trouser MTM payload with custom attributes.
+- Normalizes to shared `gjm_*` contract before validation and cart mutation.
+
+## 3. TypeScript interface alignment
+
+Shared interfaces are expected to stay centralized in `types/` and imported by
+both pages and API handlers:
+
+- `ProductSummary`, `ProductDetail`
+- `MtmSpec`, `MtmLineItemProperties`
 - `CartAddRequest`
-- `BookingCreate` / `BookingRecord`
+- `AppointmentRequest`, `AvailabilityResponse`, `ServiceTypeOption`
+- `BookingCreate`, `BookingRecord`
 - `FitProfileCreate`
 
-These definitions will be imported by both pages and API routes, ensuring
-alignment. Existing `types/mtm.ts`, `types/fit.ts`, `types/booking.ts` already
-contain portions; we will extend them.
+## 4. A2 completion criteria (current repo state)
 
-## 4. API route skeletons
+1. Canonical `/c/*` + `/p/*` routes exist and are usable.
+2. Legacy `/shop/*` + `/product/*` compatibility remains intact.
+3. Primary storefront links point to canonical routes.
+4. Booking API includes service-type catalog endpoint and typed client usage.
+5. Cart MTM payloads use normalized `gjm_*` attributes.
 
-Create serverless route files under `/app/api/` that implement the above
-types:
+## 5. Contract quality gate
 
-- `app/api/products/route.ts`
-- `app/api/products/[handle]/route.ts`
-- `app/api/fit/profile/route.ts` (+ `[id]/route.ts`)
-- `app/api/bookings/availability/route.ts` and `/app/api/bookings/route.ts`
-- `app/api/cart/route.ts` and `/app/api/cart/add/route.ts`
+Run one command to verify API and routing contracts stay aligned:
 
-Each handler will validate input (Zod) and export simple placeholders or
-`return NextResponse.json({})` with typed generics.
+`npm run test:contracts`
 
-## 5. Next steps after A2
+This bundles:
 
-1. Implement each API route using `lib/` helpers (e.g. `lib/shopify.ts`,
-   `lib/booking-service.ts`).
-2. Enhance PLP/PDP pages to call these endpoints instead of hitting Shopify
-directly.
-3. Build fit flows (`/fit/*`) to call profile APIs.
-4. Add cart interactions and persist `mtm_spec` data.
+- `test:api-contracts`
+- `test:routing-contract`
+- `test:home-product-card-flow`
 
----
+## 6. Next step after A2
 
-Completing A2 ensures a fully typed, aligned frontend/back-end contract that
-will make subsequent feature development predictable and maintainable.
+Route/API naming normalization for remaining edge flows:
+
+1. Keep any demo/sandbox routes non-canonical and out of customer recovery flows.
+2. Add explicit redirect strategy if and when `/shop/*` and `/product/*` are deprecated.
+3. Reconcile docs and monitoring dashboards to treat `/c/*` and `/p/*` as the default route family.

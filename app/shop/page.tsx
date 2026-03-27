@@ -99,7 +99,7 @@ export default async function ShopPage() {
 
         <div className="mt-6 flex flex-wrap gap-2">
           <Link
-            href="/shop"
+            href="/c"
             className="rounded-full bg-black px-4 py-2 text-xs font-bold uppercase tracking-widest text-white"
           >
             All
@@ -107,7 +107,7 @@ export default async function ShopPage() {
           {collections.map((collection) => (
             <Link
               key={collection.id}
-              href={`/shop/${collection.handle}`}
+              href={`/c/${collection.handle}`}
               className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-bold uppercase tracking-widest text-zinc-700 transition hover:border-zinc-900 hover:text-zinc-900"
             >
               {collection.title}
@@ -119,7 +119,7 @@ export default async function ShopPage() {
           {products.map((p) => (
             <Link
               key={p.id}
-              href={`/product/${p.handle}`}
+              href={`/p/${p.handle}`}
               className="group block overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className="aspect-[4/5] overflow-hidden bg-zinc-100">

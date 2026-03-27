@@ -25,7 +25,7 @@ assert.equal(nonMtmFlow.action, 'open_product', 'non-MTM product should route to
 assert.equal(nonMtmFlow.ctaLabel, 'View Product', 'non-MTM CTA should not show fit-gate copy');
 assert.equal(
   nonMtmFlow.href,
-  '/product/vst-oxford-shoe-non-tailor-config',
+  '/p/vst-oxford-shoe-non-tailor-config',
   'non-MTM href should point to product details route'
 );
 

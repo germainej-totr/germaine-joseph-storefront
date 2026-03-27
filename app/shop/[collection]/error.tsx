@@ -24,7 +24,7 @@ export default function CollectionError({ error, reset }: CollectionErrorProps) 
             Retry
           </button>
           <Link
-            href="/shop"
+            href="/c"
             className="rounded-sm border border-zinc-300 px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-700 hover:border-zinc-900 hover:text-zinc-900"
           >
             All Collections

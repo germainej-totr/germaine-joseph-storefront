@@ -102,7 +102,7 @@ export default async function AccountPage({
 
         <div className="flex gap-3">
           <Link
-            href="/shop"
+            href="/c"
             className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
           >
             Return to shop
@@ -150,7 +150,7 @@ export default async function AccountPage({
               Start fitting flow
             </Link>
             <Link
-              href="/product/mtm-trouser-test-build"
+              href="/p/mtm-trouser-test-build"
               className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-900 hover:text-zinc-900"
             >
               Open MTM product
@@ -198,7 +198,7 @@ export default async function AccountPage({
                 Update fitting
               </Link>
               <Link
-                href="/product/mtm-trouser-test-build"
+                href="/p/mtm-trouser-test-build"
                 className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-900 hover:text-zinc-900"
               >
                 Return to MTM product

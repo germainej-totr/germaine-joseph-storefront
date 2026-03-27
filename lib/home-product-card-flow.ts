@@ -30,6 +30,6 @@ export function resolveHomeProductCardFlow(product: ProductSummary): HomeProduct
     helperText: 'Click to view product options',
     ctaLabel: 'View Product',
     action: 'open_product',
-    href: `/product/${product.handle}`,
+    href: `/p/${product.handle}`,
   };
 }

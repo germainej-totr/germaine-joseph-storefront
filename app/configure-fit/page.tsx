@@ -711,7 +711,7 @@ function FitConfiguratorContent() {
               <p className="mt-1">Please return to the configurator to restore your design before completing fit intake.</p>
               <button
                 onClick={() => {
-                  window.location.href = '/shop/trouser-demo';
+                  window.location.href = '/p/mtm-trouser-test-build';
                 }}
                 className="mt-3 rounded-md bg-amber-700 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-amber-800"
               >

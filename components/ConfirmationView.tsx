@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { calculateFitConfidence } from '@/lib/fit-logic';
 
 interface ConfirmationFormData {
@@ -61,9 +62,9 @@ export default function BookingConfirmation({ formData }: { formData: Confirmati
         </p>
       </div>
       
-      <button className="w-full mt-8 bg-black text-white py-4 rounded-xl font-bold hover:bg-zinc-800 transition-all">
+      <Link href="/shop" className="block w-full mt-8 bg-black text-white py-4 rounded-xl font-bold hover:bg-zinc-800 transition-all text-center">
         Continue to Gallery
-      </button>
+      </Link>
     </div>
   );
 }
