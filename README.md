@@ -48,6 +48,7 @@ npx prisma migrate status
 npm run db:migrate:safe -- <change_name>
 npm run db:migrate:doctor
 npm run db:migrate:doctor:json
+npm run db:migrate:doctor:gate
 npx prisma generate
 ```
 
@@ -100,6 +101,12 @@ For CI/support tooling, use structured output:
 
 ```bash
 npm run db:migrate:doctor:json
+```
+
+For CI gating (fails with non-zero exit when `ok` is false):
+
+```bash
+npm run db:migrate:doctor:gate
 ```
 
 ## Learn More
