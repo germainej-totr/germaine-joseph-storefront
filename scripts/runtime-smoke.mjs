@@ -83,6 +83,17 @@ async function requestText(path, init) {
   return text;
 }
 
+async function parseJsonResponse(response, path) {
+  const text = await response.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`${path} -> expected JSON payload, received: ${text}`);
+  }
+}
+
 function assert(condition, message) {
   if (!condition) {
     throw new Error(message);
@@ -161,6 +172,41 @@ async function verifyRoute(path, expectedStatuses) {
   const response = await request(path, { redirect: 'manual' });
   assert(expectedStatuses.includes(response.status), `Expected ${path} status in [${expectedStatuses.join(', ')}], got ${response.status}`);
   console.log(`OK route -> ${path} (${response.status})`);
+}
+
+async function verifyMtmGateContract() {
+  const noProfileResponse = await request('/api/fit/gate-status', { redirect: 'manual' });
+  const noProfilePayload = await parseJsonResponse(noProfileResponse, '/api/fit/gate-status');
+
+  assert(noProfilePayload?.entryPath === 'full_mtm_required', 'Expected no-profile gate decision to require full MTM flow');
+
+  if (noProfileResponse.status === 401) {
+    assert(noProfilePayload?.reason === 'unauthenticated', 'Expected unauthenticated gate response reason');
+    console.log('OK MTM gate -> unauthenticated contract (401/full_mtm_required)');
+  } else {
+    assert(noProfileResponse.status === 200, `Expected /api/fit/gate-status status 200 or 401, got ${noProfileResponse.status}`);
+    assert(noProfilePayload?.reason === 'no_fit_profile', 'Expected authenticated no-profile gate reason');
+    console.log('OK MTM gate -> authenticated no-profile contract (200/full_mtm_required)');
+  }
+
+  const fakeId = `runtime-smoke-${Date.now()}`;
+  const missingProfileResponse = await request(`/api/fit/gate-status?fitProfileId=${encodeURIComponent(fakeId)}`, { redirect: 'manual' });
+  const missingProfilePayload = await parseJsonResponse(
+    missingProfileResponse,
+    '/api/fit/gate-status?fitProfileId=<fake>',
+  );
+
+  if (missingProfileResponse.status === 401) {
+    assert(missingProfilePayload?.reason === 'unauthenticated', 'Expected unauthenticated response for missing fit profile check');
+    assert(missingProfilePayload?.entryPath === 'full_mtm_required', 'Expected unauthenticated missing-profile entry path to require full MTM flow');
+    console.log('OK MTM gate missing profile -> unauthenticated contract (401/full_mtm_required)');
+    return;
+  }
+
+  assert(missingProfileResponse.status === 200, `Expected missing-profile gate status 200 or 401, got ${missingProfileResponse.status}`);
+  assert(missingProfilePayload?.reason === 'no_fit_profile', 'Expected missing profile to resolve to no_fit_profile for authenticated sessions');
+  assert(missingProfilePayload?.entryPath === 'full_mtm_required', 'Expected missing profile entry path to require full MTM flow');
+  console.log('OK MTM gate missing profile -> authenticated contract (200/full_mtm_required)');
 }
 
 async function resolveCollectionHandle() {
@@ -267,6 +313,7 @@ async function main() {
   const resolvedMtmHandle = await verifyCatalogClassification();
   const nonTailorProduct = await verifyProductDetail(nonTailorHandle, false);
   await verifyProductDetail(resolvedMtmHandle, true);
+  await verifyMtmGateContract();
   await verifyRoute('/shop', [200]);
   await verifyOptionalCollection();
   await verifyRoute('/cart', [200]);
