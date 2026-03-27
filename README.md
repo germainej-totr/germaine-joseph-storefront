@@ -47,6 +47,7 @@ Common commands:
 npx prisma migrate status
 npm run db:migrate:safe -- <change_name>
 npm run db:migrate:doctor
+npm run db:migrate:doctor:json
 npx prisma generate
 ```
 
@@ -93,6 +94,12 @@ If migration commands are failing and you need a guided diagnostic pass:
 
 ```bash
 npm run db:migrate:doctor
+```
+
+For CI/support tooling, use structured output:
+
+```bash
+npm run db:migrate:doctor:json
 ```
 
 ## Learn More
