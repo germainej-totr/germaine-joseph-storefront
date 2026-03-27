@@ -28,6 +28,12 @@ Run one command before push/deploy:
 npm run qa:predeploy
 ```
 
+For CI/staging environments where migration readiness must be enforced, use:
+
+```bash
+npm run qa:predeploy:strict
+```
+
 This runs, in order:
 
 1. Prisma connectivity healthcheck (`qa:prisma-connectivity`)
@@ -36,6 +42,8 @@ This runs, in order:
 4. Production build (`build`)
 
 If this command passes, the current branch is considered release-ready.
+
+Strict mode runs migration doctor gate first (`db:migrate:doctor:gate`) and fails fast when Prisma doctor JSON reports `ok: false`.
 
 ## Prisma Workflow
 

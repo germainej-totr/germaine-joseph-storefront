@@ -23,6 +23,7 @@
     "db:migrate:doctor:json": "node scripts/db-migrate-doctor.mjs --json",
     "db:migrate:doctor:gate": "node scripts/db-migrate-doctor-gate.mjs",
     "qa:predeploy": "npm run qa:prisma-connectivity && npm run test:contracts && npm run lint && npm run build",
+    "qa:predeploy:strict": "npm run db:migrate:doctor:gate && npm run test:contracts && npm run lint && npm run build",
     "qa:runtime-smoke": "node scripts/runtime-smoke.mjs",
     "qa:mtm-ui-checklist": "node scripts/posthog/mtm-ui-path-qa.mjs checklist",
     "qa:mtm-ui-init-report": "node scripts/posthog/mtm-ui-path-qa.mjs init-report",
