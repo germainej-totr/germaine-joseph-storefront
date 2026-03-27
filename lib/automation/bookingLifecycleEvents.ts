@@ -19,16 +19,26 @@ const KLAVIYO_EVENTS_URL = 'https://a.klaviyo.com/api/events/';
 const KLAVIYO_REVISION = '2024-05-15';
 
 function getEnvConfig() {
-  const privateApiKey = process.env.KLAVIYO_PRIVATE_API_KEY || '';
+  const privateApiKey =
+    process.env.KLAVIYO_GJ_PRIVATE_API_KEY ||
+    process.env.KLAVIYO_PRIVATE_API_KEY ||
+    '';
   const enabled = String(process.env.KLAVIYO_BOOKING_EVENTS_ENABLED || 'false').toLowerCase() === 'true';
-  return { privateApiKey, enabled };
+  const metricPrefix = (process.env.KLAVIYO_BOOKING_EVENT_PREFIX || '').trim();
+  const accountLabel = (process.env.KLAVIYO_ACCOUNT_LABEL || 'germainejoseph').trim();
+  return { privateApiKey, enabled, metricPrefix, accountLabel };
+}
+
+function toMetricName(eventName: BookingLifecycleEventName, prefix: string): string {
+  if (!prefix) return eventName;
+  return `${prefix}_${eventName}`;
 }
 
 export async function emitBookingLifecycleEvent(
   eventName: BookingLifecycleEventName,
   payload: BookingLifecycleEventPayload,
 ): Promise<{ ok: boolean; skipped?: boolean; status?: number; error?: string }> {
-  const { privateApiKey, enabled } = getEnvConfig();
+  const { privateApiKey, enabled, metricPrefix, accountLabel } = getEnvConfig();
 
   if (!enabled) {
     return { ok: true, skipped: true };
@@ -46,6 +56,8 @@ export async function emitBookingLifecycleEvent(
     const scheduledAt = payload.date && payload.timeSlot
       ? `${payload.date} ${payload.timeSlot}`
       : undefined;
+
+    const metricName = toMetricName(eventName, metricPrefix);
 
     const response = await fetch(KLAVIYO_EVENTS_URL, {
       method: 'POST',
@@ -67,12 +79,14 @@ export async function emitBookingLifecycleEvent(
               location: payload.location,
               source: payload.source || 'storefront',
               lifecycleEvent: eventName,
+              metricName,
+              accountLabel,
             },
             metric: {
               data: {
                 type: 'metric',
                 attributes: {
-                  name: eventName,
+                  name: metricName,
                 },
               },
             },

@@ -53,7 +53,16 @@ Booking events are emitted on confirmation/reschedule/cancel with safe fire-and-
 Set these environment variables to enable Klaviyo event delivery:
 
 - `KLAVIYO_BOOKING_EVENTS_ENABLED=true`
-- `KLAVIYO_PRIVATE_API_KEY=<your_private_api_key>`
+- `KLAVIYO_GJ_PRIVATE_API_KEY=<private_api_key_for_new_germainejoseph_account>`
+
+Optional isolation controls:
+
+- `KLAVIYO_BOOKING_EVENT_PREFIX=gj_intl` (prefixes metric names, e.g. `gj_intl_booking_confirmed`)
+- `KLAVIYO_ACCOUNT_LABEL=germainejoseph` (stamped into event properties for auditability)
+
+Backward compatibility note:
+
+- If `KLAVIYO_GJ_PRIVATE_API_KEY` is not set, code falls back to `KLAVIYO_PRIVATE_API_KEY`.
 
 When not enabled, event emission is skipped with no impact on booking API responses.
 
