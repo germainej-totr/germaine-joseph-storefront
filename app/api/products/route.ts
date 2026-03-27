@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ProductSummary } from '@/types/fit';
 import { shopifyFetch } from '@/lib/shopify';
+import { parseMetafieldBoolean } from '@/lib/metafield';
 
 interface ProductImageNode {
   url?: string;
@@ -12,6 +13,7 @@ interface ProductNode {
   handle: string;
   title: string;
   images?: { edges?: Array<{ node?: ProductImageNode }> };
+  mtm_required?: { value?: unknown };
 }
 
 interface ProductsPayload {
@@ -75,6 +77,8 @@ export async function GET(req: Request) {
                   handle
                   title
                   images(first: 1) { edges { node { url altText } } }
+                  mtm_required: metafield(namespace: "gjm", key: "required_fit_gate") { value }
+                  mtm_required: metafield(namespace: "gjm", key: "required_fit_gate") { value }
                 }
               }
             }
@@ -118,7 +122,7 @@ export async function GET(req: Request) {
         handle: p.handle,
         title: p.title,
         imageUrl: p.images?.edges?.[0]?.node?.url,
-        mtmRequired: false,
+        mtmRequired: parseMetafieldBoolean(p.mtm_required?.value),
       };
     });
 
