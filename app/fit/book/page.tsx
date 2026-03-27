@@ -3,19 +3,18 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import type { ServiceTypeId } from '@/types/booking';
+import { useBookingServiceTypes } from '@/hooks/useBookingServiceTypes';
 
-const SERVICE_OPTIONS: Array<{ value: ServiceTypeId; label: string }> = [
-  { value: 'showroom', label: 'Showroom Fitting' },
-  { value: 'home_office', label: 'Home / Office Fitting' },
-  { value: 'virtual', label: 'Virtual Consultation' },
-  { value: 'video_consult', label: 'Video Consultation' },
-  { value: 'tailor_fitting', label: 'Tailor Fitting' },
-];
+function toYyyyMmDdLocal(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
-function getMinBookingDate() {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
-  return date.toISOString().split('T')[0];
+function getMinBookingDateByLeadTime(leadTimeHours: number): string {
+  const date = new Date(Date.now() + leadTimeHours * 60 * 60 * 1000);
+  return toYyyyMmDdLocal(date);
 }
 
 function BookFitContent() {
@@ -31,8 +30,19 @@ function BookFitContent() {
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const { serviceTypes, serviceTypeMap, defaultServiceType } = useBookingServiceTypes();
 
   const useCase = searchParams.get('useCase') || 'Business';
+
+  useEffect(() => {
+    setServiceType((current) => {
+      if (serviceTypeMap[current]) {
+        return current;
+      }
+
+      return (defaultServiceType as ServiceTypeId) || 'showroom';
+    });
+  }, [serviceTypeMap, defaultServiceType]);
 
   useEffect(() => {
     if (!date) {
@@ -81,7 +91,20 @@ function BookFitContent() {
     };
   }, [date, serviceType]);
 
-  const requiresAddress = useMemo(() => serviceType === 'home_office', [serviceType]);
+  const selectedServiceType = useMemo(
+    () => serviceTypeMap[serviceType],
+    [serviceType, serviceTypeMap],
+  );
+
+  const minBookingDate = useMemo(
+    () => getMinBookingDateByLeadTime(selectedServiceType?.leadTimeHours ?? 24),
+    [selectedServiceType],
+  );
+
+  const requiresAddress = useMemo(
+    () => selectedServiceType?.travelRequired ?? serviceType === 'home_office',
+    [selectedServiceType, serviceType],
+  );
 
   async function submitBooking() {
     if (!email || !date || !timeSlot) {
@@ -90,7 +113,7 @@ function BookFitContent() {
     }
 
     if (requiresAddress && !location.trim()) {
-      setError('Address is required for home/office fittings.');
+      setError('Address is required for travel-based fittings.');
       return;
     }
 
@@ -118,8 +141,10 @@ function BookFitContent() {
 
       const params = new URLSearchParams({
         time: timeSlot,
+        date,
         email,
         useCase,
+        serviceType,
       });
       window.location.href = `/booking-confirmed?${params.toString()}`;
     } catch (err) {
@@ -156,8 +181,8 @@ function BookFitContent() {
               onChange={(e) => setServiceType(e.target.value as ServiceTypeId)}
               className="w-full rounded-md border border-zinc-200 px-4 py-3 text-sm outline-none focus:border-zinc-400"
             >
-              {SERVICE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
+              {serviceTypes.map((option) => (
+                <option key={option.id} value={option.id}>
                   {option.label}
                 </option>
               ))}
@@ -181,7 +206,7 @@ function BookFitContent() {
               <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Date</label>
               <input
                 type="date"
-                min={getMinBookingDate()}
+                min={minBookingDate}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 className="w-full rounded-md border border-zinc-200 px-4 py-3 text-sm outline-none focus:border-zinc-400"
