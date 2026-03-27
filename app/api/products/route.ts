@@ -62,6 +62,7 @@ export async function GET(req: Request) {
                     handle
                     title
                     images(first: 1) { edges { node { url altText } } }
+                    mtm_required: metafield(namespace: "gjm", key: "required_fit_gate") { value }
                   }
                 }
               }
@@ -77,7 +78,6 @@ export async function GET(req: Request) {
                   handle
                   title
                   images(first: 1) { edges { node { url altText } } }
-                  mtm_required: metafield(namespace: "gjm", key: "required_fit_gate") { value }
                   mtm_required: metafield(namespace: "gjm", key: "required_fit_gate") { value }
                 }
               }

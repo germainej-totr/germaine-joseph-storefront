@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { ProductSummary } from '@/types/fit';
 import { shopifyFetch } from '@/lib/shopify';
+import { parseMetafieldBoolean } from '@/lib/metafield';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,7 @@ interface ProductNode {
   handle: string;
   title: string;
   images?: { edges?: Array<{ node?: { url?: string | null } }> };
+  mtm_required?: { value?: string | null };
 }
 
 interface CollectionNode {
@@ -42,6 +44,7 @@ export default async function ShopPage() {
             handle
             title
             images(first: 1) { edges { node { url } } }
+            mtm_required: metafield(namespace: "gjm", key: "required_fit_gate") { value }
           }
         }
       }
@@ -69,7 +72,7 @@ export default async function ShopPage() {
     handle: node.handle,
     title: node.title,
     imageUrl: node.images?.edges?.[0]?.node?.url || undefined,
-    mtmRequired: false,
+    mtmRequired: parseMetafieldBoolean(node.mtm_required?.value),
   }));
 
   const collections = collectionEdges.map(({ node }) => ({
@@ -136,7 +139,9 @@ export default async function ShopPage() {
               </div>
               <div className="p-4">
                 <h2 className="text-base font-semibold text-zinc-900">{p.title}</h2>
-                <p className="mt-1 text-xs uppercase tracking-widest text-zinc-400">View product</p>
+                <p className="mt-1 text-xs uppercase tracking-widest text-zinc-400">
+                  {p.mtmRequired ? 'Custom MTM' : 'Ready to Wear'}
+                </p>
               </div>
             </Link>
           ))}
