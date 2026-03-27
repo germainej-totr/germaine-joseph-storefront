@@ -2,6 +2,7 @@ const baseUrl = (process.env.RUNTIME_BASE_URL || 'http://127.0.0.1:3000').replac
 const nonTailorHandle = process.env.NON_TAILOR_RUNTIME_HANDLE || 'vst-oxford-shoe-non-tailor-config';
 const mtmHandle = process.env.MTM_RUNTIME_HANDLE || 'qa-mtm-product';
 const collectionHandle = process.env.RUNTIME_COLLECTION_HANDLE || '';
+const runtimeBypassToken = process.env.RUNTIME_BYPASS_TOKEN || process.env.VERCEL_BYPASS_TOKEN || '';
 const cookieJar = new Map();
 
 function parseMetafieldBoolean(value) {
@@ -47,6 +48,11 @@ async function request(path, init = {}) {
   const cookieHeader = getCookieHeader();
   if (cookieHeader) {
     headers.set('cookie', cookieHeader);
+  }
+
+  if (runtimeBypassToken) {
+    headers.set('x-vercel-protection-bypass', runtimeBypassToken);
+    headers.set('x-vercel-set-bypass-cookie', 'true');
   }
 
   const response = await fetch(`${baseUrl}${path}`, { ...init, headers });
@@ -309,6 +315,9 @@ async function verifyCartLifecycle(nonTailorProduct) {
 
 async function main() {
   console.log(`Runtime smoke against ${baseUrl}`);
+  if (runtimeBypassToken) {
+    console.log('Using Vercel bypass token headers for protected deployment checks');
+  }
 
   const resolvedMtmHandle = await verifyCatalogClassification();
   const nonTailorProduct = await verifyProductDetail(nonTailorHandle, false);
