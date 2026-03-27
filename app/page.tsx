@@ -6,6 +6,7 @@ import Image from 'next/image';
 import FitGateModal from '@/components/FitGateModal';
 import type { ProductSummary } from '@/types/fit';
 import { resolveHomeProductCardFlow } from '@/lib/home-product-card-flow';
+import type { ProductListResponse } from '@/lib/contracts/productApi';
 
 type HomeProduct = ProductSummary & { imageUrl?: string };
 
@@ -26,7 +27,7 @@ export default function HomePage() {
           return;
         }
 
-        const json = await response.json();
+        const json = (await response.json()) as ProductListResponse;
 
         if (json?.products) {
           setProducts(json.products);

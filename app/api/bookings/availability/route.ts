@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server';
 import { AvailabilityResponse, ServiceTypeId } from '@/types/booking';
 import { BookingService } from '@/lib/booking-service';
+import { AVAILABILITY_REQUEST_SCHEMA } from '@/lib/contracts/apiSchemas';
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as { date?: string; serviceType?: ServiceTypeId };
-    if (!body.date) {
-      return NextResponse.json({ error: 'date is required' }, { status: 400 });
+    const parsed = AVAILABILITY_REQUEST_SCHEMA.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid request body', details: parsed.error.flatten() },
+        { status: 400 },
+      );
     }
 
+    const body = parsed.data as { date: string; serviceType?: ServiceTypeId };
     const result = await BookingService.checkAvailability(body.date, body.serviceType || 'showroom');
     const payload: AvailabilityResponse = {
       date: body.date,

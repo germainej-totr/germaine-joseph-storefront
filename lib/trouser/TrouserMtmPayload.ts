@@ -67,14 +67,20 @@ function buildLineItemProperties(
 ): Partial<MtmLineItemProperties> & Record<string, string> {
   const base: Partial<MtmLineItemProperties> & Record<string, string> = {
     mtm_category: payload.category,
+    gjm_mtm_category: payload.category,
     mtm_spec: JSON.stringify(payload.mtmSpec),
+    gjm_mtm_spec: JSON.stringify(payload.mtmSpec),
     mtm_options: JSON.stringify(payload.design?.selections || {}),
+    gjm_mtm_options: JSON.stringify(payload.design?.selections || {}),
     measurements: JSON.stringify(payload.mtmSpec.measurements),
+    gjm_measurements: JSON.stringify(payload.mtmSpec.measurements),
     fit_gate_version: payload.design?.optionSetVersion || 'fit-gate-v1',
+    gjm_fit_gate_version: payload.design?.optionSetVersion || 'fit-gate-v1',
   };
 
   if (payload.fitProfile.bookingId) {
     base.fit_profile_id = payload.fitProfile.bookingId;
+    base.gjm_fit_profile_id = payload.fitProfile.bookingId;
   }
 
   if (payload.design) {
@@ -101,13 +107,13 @@ function buildLineItemProperties(
           invalidCombinationRules: payload.design.validation.errors,
         },
       }),
-      _mtm_canonical_payload: JSON.stringify(payload),
+      gjm_mtm_canonical: JSON.stringify(payload),
     };
   }
 
   return {
     ...base,
-    _mtm_canonical_payload: JSON.stringify(payload),
+    gjm_mtm_canonical: JSON.stringify(payload),
   };
 }
 

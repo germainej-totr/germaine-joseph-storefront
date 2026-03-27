@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ProductSummary } from '@/types/fit';
 import { shopifyFetch } from '@/lib/shopify';
 import { parseMetafieldBoolean } from '@/lib/metafield';
+import type { ProductListResponse } from '@/lib/contracts/productApi';
 
 interface ProductImageNode {
   url?: string;
@@ -98,14 +99,14 @@ export async function GET(req: Request) {
 
     if (!payload) {
       return NextResponse.json(
-        { products: [], error: 'Empty Shopify response' },
+        { products: [], collection: null, error: 'Empty Shopify response' } satisfies ProductListResponse,
         { status: 502 }
       );
     }
 
     if (payload.errors?.length) {
       return NextResponse.json(
-        { products: [], error: 'Shopify GraphQL errors', details: payload.errors },
+        { products: [], collection: null, error: 'Shopify GraphQL errors', details: payload.errors } satisfies ProductListResponse,
         { status: 502 }
       );
     }
@@ -128,7 +129,7 @@ export async function GET(req: Request) {
 
     if (collection && !data?.collection) {
       return NextResponse.json(
-        { products: [], error: 'Collection not found' },
+        { products: [], collection: null, error: 'Collection not found' } satisfies ProductListResponse,
         { status: 404 }
       );
     }
@@ -145,7 +146,11 @@ export async function GET(req: Request) {
   } catch (error) {
     console.error('[/api/products] Error:', error);
     return NextResponse.json(
-      { products: [], error: error instanceof Error ? error.message : String(error) },
+      {
+        products: [],
+        collection: null,
+        error: error instanceof Error ? error.message : String(error),
+      } satisfies ProductListResponse,
       { status: 500 }
     );
   }

@@ -7,20 +7,12 @@ import {
   getCartCookieName,
   parseCartIdFromCookieHeader,
 } from '@/lib/shopify/cart';
+import { normalizeGjmLineItemAttributes, toShopifyAttributeInput } from '@/lib/shopify/gjmLineItemAttributes';
+import { ADD_MTM_TROUSER_REQUEST_SCHEMA, type AddMtmTrouserRequest } from '@/lib/contracts/apiSchemas';
 
 function isRecoverableCartError(error: unknown): boolean {
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
   return message.includes('cart') && (message.includes('not found') || message.includes('invalid') || message.includes('does not exist'));
-}
-
-interface AddMtmTrouserRequest {
-  variantId: string;
-  quantity?: number;
-  customAttributes: Record<string, string>;
-  metadata?: {
-    source?: string;
-    timestamp?: string;
-  };
 }
 
 async function validateMtmTrouserOwnership(
@@ -90,24 +82,22 @@ async function validateMtmTrouserOwnership(
  */
 export async function POST(req: Request): Promise<NextResponse> {
   try {
-    const body: AddMtmTrouserRequest = await req.json();
+    const parsed = ADD_MTM_TROUSER_REQUEST_SCHEMA.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { ok: false, error: 'Invalid request body', details: parsed.error.flatten() },
+        { status: 400 },
+      );
+    }
+
+    const body: AddMtmTrouserRequest = parsed.data;
     const { variantId, quantity = 1, customAttributes } = body;
 
-    if (!variantId) {
-      return NextResponse.json(
-        { ok: false, error: 'variantId is required' },
-        { status: 400 },
-      );
-    }
+    const normalizedAttributes = normalizeGjmLineItemAttributes({
+      customAttributes,
+    });
 
-    if (!customAttributes || Object.keys(customAttributes).length === 0) {
-      return NextResponse.json(
-        { ok: false, error: 'customAttributes cannot be empty' },
-        { status: 400 },
-      );
-    }
-
-    const ownershipCheck = await validateMtmTrouserOwnership(customAttributes);
+    const ownershipCheck = await validateMtmTrouserOwnership(normalizedAttributes);
     if (!ownershipCheck.ok) {
       return NextResponse.json(
         { ok: false, error: ownershipCheck.error },
@@ -116,10 +106,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
 
     // Convert custom attributes to Shopify format
-    const attributesInput = Object.entries(customAttributes).map(([key, value]) => ({
-      key,
-      value,
-    }));
+    const attributesInput = toShopifyAttributeInput(normalizedAttributes);
 
     const existingCartId = parseCartIdFromCookieHeader(req.headers.get('cookie'));
     let cart;

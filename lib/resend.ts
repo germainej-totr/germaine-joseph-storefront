@@ -1,4 +1,6 @@
 import { Resend } from "resend";
+import { render } from "@react-email/render";
+import { BookingConfirmationEmail } from "@/components/emails/BookingConfirmation";
 
 type SmartFitEmailInput = {
   to?: string;
@@ -42,6 +44,46 @@ export async function sendSmartFitSubmissionEmail(input: SmartFitEmailInput) {
         <p><strong>Alert:</strong> ${input.alertMessage || "None"}</p>
         <p><strong>Record ID:</strong> ${input.recordId ?? "N/A"}</p>
       `,
+    });
+
+    return { ok: true, id: result.data?.id };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+type BookingConfirmationEmailInput = {
+  to: string;
+  appointmentLabel: string;
+  appointmentMode: string;
+  location: string;
+  googleCalendarUrl: string;
+  outlookCalendarUrl: string;
+};
+
+export async function sendBookingConfirmationEmail(input: BookingConfirmationEmailInput) {
+  const from = process.env.RESEND_FROM;
+
+  if (!process.env.RESEND_API_KEY || !from) {
+    return { ok: false, error: "Missing RESEND_API_KEY or RESEND_FROM" };
+  }
+
+  try {
+    const html = await render(
+      BookingConfirmationEmail({
+        appointmentLabel: input.appointmentLabel,
+        appointmentMode: input.appointmentMode,
+        location: input.location,
+        googleCalendarUrl: input.googleCalendarUrl,
+        outlookCalendarUrl: input.outlookCalendarUrl,
+      }),
+    );
+
+    const result = await resend.emails.send({
+      from,
+      to: input.to,
+      subject: `Appointment Confirmed — Germaine Joseph`,
+      html,
     });
 
     return { ok: true, id: result.data?.id };

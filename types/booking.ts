@@ -5,10 +5,10 @@ export type ServiceTypeId = 'home_office' | 'showroom' | 'virtual' | 'video_cons
 
 /** Maps app-side ServiceTypeId to the gjm_service_type metaobject handle in Shopify */
 export const SERVICE_TYPE_HANDLE: Record<ServiceTypeId, string> = {
-  home_office:    'home-office',
-  showroom:       'showroom',
-  virtual:        'virtual',
-  video_consult:  'video-consult',
+  home_office: 'home-office',
+  showroom: 'showroom',
+  virtual: 'virtual',
+  video_consult: 'video-consult',
   tailor_fitting: 'tailor-fitting',
 };
 
@@ -28,6 +28,18 @@ export interface AvailabilityResponse {
   date: string;
   availableSlots: string[];
   isAvailable: boolean;
+}
+
+export interface ServiceTypeOption {
+  id: ServiceTypeId;
+  handle: string;
+  label: string;
+  durationMin: number;
+  depositAmount: number;
+  leadTimeHours: number;
+  travelRequired: boolean;
+  slots?: string[];
+  zones?: { radius_km?: number; flat_fee?: number };
 }
 
 export interface BookingCreate {
@@ -50,6 +62,17 @@ export interface BookingRecord extends BookingCreate {
   status: string;
   depositStatus: 'none' | 'pending' | 'paid' | 'refunded';
   createdAt: string;
+}
+
+export interface BookingUpdateRequest {
+  action: 'cancel' | 'reschedule' | 'update';
+  serviceType?: ServiceTypeId;
+  location?: string;
+  date?: string;
+  timeSlot?: string;
+  notes?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface CartAddRequest {

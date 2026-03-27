@@ -8,53 +8,28 @@ import {
   getCartCookieName,
   parseCartIdFromCookieHeader,
 } from '@/lib/shopify/cart';
+import { normalizeGjmLineItemAttributes, toShopifyAttributeInput } from '@/lib/shopify/gjmLineItemAttributes';
+import { CART_ADD_REQUEST_SCHEMA } from '@/lib/contracts/apiSchemas';
 
 function isRecoverableCartError(error: unknown): boolean {
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
   return message.includes('cart') && (message.includes('not found') || message.includes('invalid') || message.includes('does not exist'));
 }
 
-function safeStringify(value: unknown): string {
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return '{}';
-  }
-}
-
 function buildLineItemAttributes(body: CartAddRequest): Array<{ key: string; value: string }> {
-  const attributes: Array<{ key: string; value: string }> = [];
+  const normalized = normalizeGjmLineItemAttributes({
+    fitProfileId: body.fitProfileId,
+    fitGateVersion: body.fitGateVersion,
+    mtmSpec: body.mtmSpec,
+    mtmOptions: body.mtmOptions,
+    measurements: body.measurements,
+    customAttributes: {
+      ...(body.productFlow ? { gjm_product_flow: body.productFlow } : {}),
+      ...(body.customAttributes || {}),
+    },
+  });
 
-  if (body.productFlow) {
-    attributes.push({ key: 'gjm_product_flow', value: body.productFlow });
-  }
-
-  if (body.fitProfileId) {
-    attributes.push({ key: 'fit_profile_id', value: body.fitProfileId });
-    attributes.push({ key: 'gjm_fit_profile_id', value: body.fitProfileId });
-  }
-
-  if (body.fitGateVersion) {
-    attributes.push({ key: 'gjm_fit_gate_version', value: body.fitGateVersion });
-  }
-
-  if (body.mtmSpec) {
-    attributes.push({ key: 'gjm_mtm_spec', value: safeStringify(body.mtmSpec) });
-  }
-
-  if (body.mtmOptions && Object.keys(body.mtmOptions).length > 0) {
-    attributes.push({ key: 'gjm_mtm_options', value: safeStringify(body.mtmOptions) });
-  }
-
-  if (body.measurements && Object.keys(body.measurements).length > 0) {
-    attributes.push({ key: 'gjm_measurements', value: safeStringify(body.measurements) });
-  }
-
-  for (const [key, value] of Object.entries(body.customAttributes ?? {})) {
-    attributes.push({ key, value });
-  }
-
-  return attributes;
+  return toShopifyAttributeInput(normalized);
 }
 
 async function validateMtmOwnership(body: CartAddRequest): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
@@ -98,12 +73,20 @@ async function validateMtmOwnership(body: CartAddRequest): Promise<{ ok: true } 
 
 export async function POST(req: Request) {
   try {
-    const body: CartAddRequest = await req.json();
-    const { variantId, quantity } = body;
-
-    if (!variantId) {
-      return NextResponse.json({ ok: false, error: 'variantId is required' }, { status: 400 });
+    const parsed = CART_ADD_REQUEST_SCHEMA.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { ok: false, error: 'Invalid request body', details: parsed.error.flatten() },
+        { status: 400 },
+      );
     }
+
+    const body: CartAddRequest = {
+      ...parsed.data,
+      quantity: parsed.data.quantity ?? 1,
+    };
+
+    const { variantId, quantity } = body;
 
     const ownershipCheck = await validateMtmOwnership(body);
     if (!ownershipCheck.ok) {
@@ -119,7 +102,7 @@ export async function POST(req: Request) {
       try {
         cart = await addLinesToShopifyCart({
           cartId: existingCartId,
-          variantId,
+          variantId: variantId!,
           quantity: quantity ?? 1,
           attributes: customAttributes,
         });
@@ -129,14 +112,14 @@ export async function POST(req: Request) {
         }
 
         cart = await createShopifyCart({
-          variantId,
+          variantId: variantId!,
           quantity: quantity ?? 1,
           attributes: customAttributes,
         });
       }
     } else {
       cart = await createShopifyCart({
-        variantId,
+        variantId: variantId!,
         quantity: quantity ?? 1,
         attributes: customAttributes,
       });

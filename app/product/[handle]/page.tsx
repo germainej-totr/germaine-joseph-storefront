@@ -7,6 +7,7 @@ import { trackMtmGateEvent } from '@/lib/analytics/trackMtmGateEvent';
 import type { MtmGateEventName } from '@/lib/analytics/mtmGateContract';
 import { trackNonTailorConfiguratorEvent } from '@/lib/analytics/trackNonTailorConfiguratorEvent';
 import { parseMetafieldBoolean } from '@/lib/metafield';
+import type { ProductDetailResponse } from '@/lib/contracts/productApi';
 
 type EntryPath = 'full_mtm_required' | 'saved_fit_eligible' | 'refit_recommended';
 
@@ -149,8 +150,8 @@ export default function ProductPage() {
           throw new Error(`Product API HTTP ${res.status}`);
         }
 
-        const json = (await res.json()) as { product?: ProductData; data?: { productByHandle?: ProductData } };
-        const nextProduct = json?.product ?? json?.data?.productByHandle ?? null;
+        const json = (await res.json()) as ProductDetailResponse;
+        const nextProduct = (json?.product as ProductData | null) ?? null;
         setProduct(nextProduct);
 
         if (!nextProduct) {

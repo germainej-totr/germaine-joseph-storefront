@@ -1,48 +1,7 @@
 // lib/booking-service.ts
-import { AppointmentRequest, ServiceTypeId } from '@/types/booking';
+import { AppointmentRequest, BookingUpdateRequest, ServiceTypeId } from '@/types/booking';
+import { getServiceTypeConfig, isServiceType } from '@/lib/booking/serviceTypes';
 import prisma from '@/lib/prisma';
-
-type ServicePolicy = {
-  slots: string[];
-  maxBookingsPerDay: number;
-  leadTimeHours: number;
-};
-
-const SERVICE_POLICIES: Record<ServiceTypeId, ServicePolicy> = {
-  showroom: {
-    slots: ['09:00 AM', '11:00 AM', '01:30 PM', '04:00 PM'],
-    maxBookingsPerDay: 6,
-    leadTimeHours: 24,
-  },
-  home_office: {
-    slots: ['10:00 AM', '01:00 PM', '04:00 PM'],
-    maxBookingsPerDay: 4,
-    leadTimeHours: 48,
-  },
-  tailor_fitting: {
-    slots: ['09:00 AM', '11:00 AM', '01:30 PM', '04:00 PM'],
-    maxBookingsPerDay: 6,
-    leadTimeHours: 24,
-  },
-  virtual: {
-    slots: ['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM'],
-    maxBookingsPerDay: 10,
-    leadTimeHours: 2,
-  },
-  video_consult: {
-    slots: ['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM'],
-    maxBookingsPerDay: 10,
-    leadTimeHours: 2,
-  },
-};
-
-function getServicePolicy(serviceType: ServiceTypeId): ServicePolicy {
-  return SERVICE_POLICIES[serviceType];
-}
-
-function isServiceType(value: string): value is ServiceTypeId {
-  return Object.prototype.hasOwnProperty.call(SERVICE_POLICIES, value);
-}
 
 function parseTimeSlot(timeSlot: string): { hours: number; minutes: number } | null {
   const match = timeSlot.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
@@ -84,6 +43,67 @@ function meetsLeadTime(startAt: Date, leadTimeHours: number): boolean {
   return startAt.getTime() >= minimumStart;
 }
 
+async function getAvailabilitySlots(
+  date: string,
+  serviceType: ServiceTypeId,
+  excludeBookingId?: string,
+): Promise<{ isAvailable: boolean; slots: string[]; message: string }> {
+  const policy = await getServiceTypeConfig(serviceType);
+
+  const range = toUtcDayRange(date);
+  if (Number.isNaN(range.start.getTime())) {
+    return { isAvailable: false, message: 'Invalid date', slots: [] as string[] };
+  }
+
+  const bookings = await prisma.booking.findMany({
+    where: {
+      serviceType,
+      startAt: {
+        gte: range.start,
+        lt: range.end,
+      },
+    },
+    select: { id: true, startAt: true, status: true },
+  });
+
+  const activeBookings = bookings.filter(
+    (booking) => booking.status !== 'cancelled' && booking.id !== excludeBookingId,
+  );
+
+  if (activeBookings.length >= policy.maxBookingsPerDay) {
+    return {
+      isAvailable: false,
+      message: 'No slots available for this date',
+      slots: [] as string[],
+    };
+  }
+
+  const bookedSlotSet = new Set(
+    activeBookings.map((booking) => {
+      const hour24 = booking.startAt.getUTCHours();
+      const minutes = booking.startAt.getUTCMinutes().toString().padStart(2, '0');
+      const meridiem = hour24 >= 12 ? 'PM' : 'AM';
+      const hour12 = hour24 % 12 || 12;
+      return `${hour12}:${minutes} ${meridiem}`;
+    }),
+  );
+
+  const slots = policy.slots.filter((slot) => {
+    if (bookedSlotSet.has(slot)) return false;
+
+    const slotDate = slotToUtcDate(date, slot);
+    if (!slotDate) return false;
+
+    return meetsLeadTime(slotDate, policy.leadTimeHours);
+  });
+
+  return {
+    isAvailable: slots.length > 0,
+    slots,
+    message: slots.length ? 'Slots available' : 'No slots available for this date',
+  };
+}
+
 export const BookingService = {
   /**
    * Validates if a date/time is available
@@ -96,57 +116,7 @@ export const BookingService = {
       return { isAvailable: false, message: 'Invalid service type', slots: [] as string[] };
     }
 
-    const policy = getServicePolicy(serviceType);
-
-    const range = toUtcDayRange(date);
-    if (Number.isNaN(range.start.getTime())) {
-      return { isAvailable: false, message: 'Invalid date', slots: [] as string[] };
-    }
-
-    const bookings = await prisma.booking.findMany({
-      where: {
-        serviceType,
-        startAt: {
-          gte: range.start,
-          lt: range.end,
-        },
-      },
-      select: { startAt: true, status: true },
-    });
-
-    const activeBookings = bookings.filter((booking) => booking.status !== 'cancelled');
-    if (activeBookings.length >= policy.maxBookingsPerDay) {
-      return {
-        isAvailable: false,
-        message: 'No slots available for this date',
-        slots: [] as string[],
-      };
-    }
-
-    const bookedSlotSet = new Set(
-      activeBookings.map((booking) => {
-        const hour24 = booking.startAt.getUTCHours();
-        const minutes = booking.startAt.getUTCMinutes().toString().padStart(2, '0');
-        const meridiem = hour24 >= 12 ? 'PM' : 'AM';
-        const hour12 = hour24 % 12 || 12;
-        return `${hour12}:${minutes} ${meridiem}`;
-      }),
-    );
-
-    const slots = policy.slots.filter((slot) => {
-      if (bookedSlotSet.has(slot)) return false;
-
-      const slotDate = slotToUtcDate(date, slot);
-      if (!slotDate) return false;
-
-      return meetsLeadTime(slotDate, policy.leadTimeHours);
-    });
-
-    return {
-      isAvailable: slots.length > 0,
-      slots,
-      message: slots.length ? 'Slots available' : 'No slots available for this date',
-    };
+    return getAvailabilitySlots(date, serviceType);
   },
 
   /**
@@ -174,14 +144,14 @@ export const BookingService = {
       };
     }
 
-    if (data.serviceType === 'home_office' && !data.location?.trim()) {
+    const policy = await getServiceTypeConfig(data.serviceType);
+    if (policy.travelRequired && !data.location?.trim()) {
       return {
         success: false,
-        message: 'Address is required for home/office fittings.',
+        message: 'Address is required for travel-based fittings.',
       };
     }
 
-    const policy = getServicePolicy(data.serviceType);
     if (!policy.slots.includes(data.timeSlot)) {
       return {
         success: false,
@@ -236,5 +206,108 @@ export const BookingService = {
       bookingId: booking.id,
       message: 'Booking recorded in Atelier system.',
     };
+  },
+
+  async updateBooking(bookingId: string, data: BookingUpdateRequest) {
+    const existing = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: { id: true, serviceType: true, status: true, location: true },
+    });
+
+    if (!existing) {
+      return { success: false, status: 404 as const, message: 'Booking not found.' };
+    }
+
+    if (data.action === 'cancel') {
+      if (existing.status === 'cancelled') {
+        return { success: true, status: 200 as const, message: 'Booking already cancelled.' };
+      }
+
+      await prisma.booking.update({
+        where: { id: bookingId },
+        data: { status: 'cancelled' },
+      });
+
+      return { success: true, status: 200 as const, message: 'Booking cancelled successfully.' };
+    }
+
+    const nextData: {
+      status?: string;
+      notes?: string | null;
+      location?: { address: string; lat?: number; lng?: number };
+      startAt?: Date;
+      serviceType?: string;
+    } = {};
+
+    if (data.notes !== undefined) {
+      nextData.notes = data.notes.trim() || null;
+    }
+
+    if (data.location !== undefined) {
+      nextData.location = {
+        address: data.location.trim(),
+        lat: data.lat,
+        lng: data.lng,
+      };
+    }
+
+    if (data.action === 'reschedule') {
+      if (!data.date || !data.timeSlot) {
+        return {
+          success: false,
+          status: 400 as const,
+          message: 'date and timeSlot are required for reschedule.',
+        };
+      }
+
+      const nextServiceType = data.serviceType || existing.serviceType;
+      if (!isServiceType(nextServiceType)) {
+        return { success: false, status: 400 as const, message: 'Invalid service type.' };
+      }
+
+      const policy = await getServiceTypeConfig(nextServiceType);
+      if (!policy.slots.includes(data.timeSlot)) {
+        return {
+          success: false,
+          status: 400 as const,
+          message: 'Selected time slot is not valid for this service.',
+        };
+      }
+
+      const parsedTime = parseTimeSlot(data.timeSlot);
+      if (!parsedTime) {
+        return { success: false, status: 400 as const, message: 'Invalid time slot format.' };
+      }
+
+      const startAt = new Date(`${data.date}T00:00:00.000Z`);
+      startAt.setUTCHours(parsedTime.hours, parsedTime.minutes, 0, 0);
+      if (!meetsLeadTime(startAt, policy.leadTimeHours)) {
+        return {
+          success: false,
+          status: 400 as const,
+          message: `Bookings for ${nextServiceType.replace(/_/g, ' ')} require at least ${policy.leadTimeHours} hours notice.`,
+        };
+      }
+
+      const availability = await getAvailabilitySlots(data.date, nextServiceType, bookingId);
+      if (!availability.slots.includes(data.timeSlot)) {
+        return {
+          success: false,
+          status: 400 as const,
+          message: 'Selected time slot is no longer available.',
+        };
+      }
+
+      nextData.startAt = startAt;
+      nextData.serviceType = nextServiceType;
+      nextData.status = 'confirmed';
+    }
+
+    await prisma.booking.update({
+      where: { id: bookingId },
+      data: nextData,
+    });
+
+    return { success: true, status: 200 as const, message: 'Booking updated successfully.' };
   }
 };
