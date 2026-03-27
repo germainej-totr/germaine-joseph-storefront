@@ -3,25 +3,29 @@ import React, { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Check, Calendar, Mail, Scissors, Download, Share2, ChevronRight } from 'lucide-react';
+import { useBookingServiceTypes } from '@/hooks/useBookingServiceTypes';
+import { buildIcsEventContent } from '@/lib/booking/calendar';
 
 function BookingConfirmedContent() {
   const searchParams = useSearchParams();
   const selectedTime = searchParams.get('time') || '09:00 AM';
+  const selectedDate = searchParams.get('date') || new Date().toISOString().slice(0, 10);
+  const serviceType = searchParams.get('serviceType') || 'showroom';
   const useCase = searchParams.get('useCase') || 'Business';
   const isWedding = useCase === 'Wedding';
+  const { serviceTypeMap } = useBookingServiceTypes();
 
   const downloadICS = () => {
     const title = `Fitting: Germaine Joseph Bespoke`;
-    const icsContent = [
-      "BEGIN:VCALENDAR",
-      "VERSION:2.0",
-      "BEGIN:VEVENT",
-      `SUMMARY:${title}`,
-      "DTSTART:20260106T090000Z",
-      "DTEND:20260106T101500Z",
-      "END:VEVENT",
-      "END:VCALENDAR"
-    ].join("\n");
+    const durationMin = serviceTypeMap[serviceType]?.durationMin ?? 60;
+    const icsContent = buildIcsEventContent({
+      title,
+      date: selectedDate,
+      timeSlot: selectedTime,
+      durationMin,
+      location: 'Maison Showroom',
+      description: `Service: ${serviceTypeMap[serviceType]?.label || serviceType}`,
+    });
 
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
     const link = document.createElement('a');
