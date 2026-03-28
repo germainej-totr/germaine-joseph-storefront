@@ -6,10 +6,12 @@ import TrouserDesignConfigurator, {
   type TrouserSelections,
 } from '@/components/TrouserDesignConfigurator';
 import TrouserDesignSummary from '@/components/TrouserDesignSummary';
+import FabricSelector from '@/components/FabricSelector';
 import {
   trouserOptionSet,
   type MtmOptionSet,
 } from '@/types/trouserOptions';
+import type { Fabric } from '@/types/fabric';
 import { applyStyleDefaults } from '@/lib/trouser/TrouserOptionDefaults';
 import {
   getVisibleOptions,
@@ -33,6 +35,8 @@ export interface TrouserConfiguratorControllerProps {
   basePrice?: number;
   title?: string;
   continueTo?: string;
+  /** Fabric catalogue for A16 fabric selector — omit to hide the fabric step */
+  fabrics?: Fabric[];
 }
 
 export default function TrouserConfiguratorController({
@@ -41,6 +45,7 @@ export default function TrouserConfiguratorController({
   basePrice = 399,
   title = 'Trouser Design',
   continueTo = '/configure-fit',
+  fabrics,
 }: TrouserConfiguratorControllerProps) {
   const router = useRouter();
 
@@ -55,6 +60,13 @@ export default function TrouserConfiguratorController({
 
     const normalized = normalizeTrouserSelections(draft.payload.selections, optionSet);
     return normalized.selections;
+  });
+
+  const [selectedFabric, setSelectedFabric] = useState<Fabric | null>(() => {
+    if (!fabrics) return null;
+    const draft = loadDraftTrouserDesign();
+    const savedId = draft?.payload?.fabricId;
+    return fabrics.find((f) => f.id === savedId) ?? null;
   });
 
   const visibleOptions = useMemo(
@@ -78,12 +90,18 @@ export default function TrouserConfiguratorController({
     setSelections(normalized.selections);
 
     // Autosave resumable draft as user configures.
-    const payload = mapTrouserDesignPayload(normalized.selections, optionSet);
+    const payload = mapTrouserDesignPayload(normalized.selections, optionSet, selectedFabric);
+    saveDraftTrouserDesign(payload);
+  }
+
+  function handleFabricSelect(fabric: Fabric | null): void {
+    setSelectedFabric(fabric);
+    const payload = mapTrouserDesignPayload(selections, optionSet, fabric);
     saveDraftTrouserDesign(payload);
   }
 
   function handleSave(current: TrouserSelections): void {
-    const payload = mapTrouserDesignPayload(current, optionSet);
+    const payload = mapTrouserDesignPayload(current, optionSet, selectedFabric);
     saveDraftTrouserDesign(payload);
 
     const cartAttributes = mapToCartAttributes(payload);
@@ -119,6 +137,21 @@ export default function TrouserConfiguratorController({
             basePrice={basePrice}
             title={title}
           />
+
+          {/* A16 Fabric Selector — rendered below design options when fabrics are provided */}
+          {fabrics && fabrics.length > 0 && (
+            <section className="mt-10">
+              <h3 className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-500 mb-3 select-none">
+                Fabric
+              </h3>
+              <FabricSelector
+                fabrics={fabrics}
+                selectedId={selectedFabric?.id}
+                onSelect={handleFabricSelect}
+                category="trouser"
+              />
+            </section>
+          )}
         </div>
 
         <div className="w-full lg:w-80 shrink-0 lg:sticky lg:top-8">
@@ -130,6 +163,14 @@ export default function TrouserConfiguratorController({
             onSave={handleSave}
             onContinueToFit={handleContinue}
           />
+
+          {/* Fabric summary chip */}
+          {selectedFabric && (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">Selected Fabric</p>
+              <p className="text-xs text-gray-800 mt-0.5">{selectedFabric.mill} — {selectedFabric.name}</p>
+            </div>
+          )}
 
           {!validation.isValid && (
             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">

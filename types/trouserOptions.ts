@@ -26,11 +26,13 @@ export type MtmOption = {
   choices?: MtmChoice[];
 };
 
+import type { MtmCategory } from './mtm';
+
 export type MtmOptionSet = {
   id: string;
   handle: string;
   title: string;
-  category: "trouser";
+  category: MtmCategory;
   version: string;
   options: MtmOption[];
 };

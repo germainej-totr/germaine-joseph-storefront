@@ -61,7 +61,7 @@ export const MTM_FIT_CONTEXT_SCHEMA = z.object({}).passthrough().optional();
  * Immutable MTM specification snapshot
  */
 export const MTM_SPEC_SCHEMA = z.object({
-  category: z.enum(['suit', 'shirt', 'trouser', 'overcoat', 'blazer', 'vest'] as const),
+  category: z.enum(['suit', 'shirt', 'trouser', 'overcoat', 'blazer', 'vest', 'jacket'] as const),
   fabricCode: z.string().optional(),
   options: z.record(z.string(), z.string()),
   measurements: z.record(z.string(), z.number()),
@@ -85,7 +85,7 @@ export const MTM_CANONICAL_PAYLOAD_SCHEMA = z.object({
 
   // Core identifiers
   id: z.string().optional(),
-  category: z.enum(['suit', 'shirt', 'trouser', 'overcoat', 'blazer', 'vest'] as const),
+  category: z.enum(['suit', 'shirt', 'trouser', 'overcoat', 'blazer', 'vest', 'jacket'] as const),
 
   // Lifecycle metadata
   createdAt: z.string().datetime(),

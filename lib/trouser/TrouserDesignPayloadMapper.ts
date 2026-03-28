@@ -10,6 +10,10 @@ export interface TrouserDesignPayload {
   optionSet: string;
   optionSetVersion: string;
   selections: Record<string, string>;
+  /** Selected fabric id from the A16 fabric catalogue (optional until chosen) */
+  fabricId?: string;
+  /** Human-readable snapshot of chosen fabric for display */
+  fabricName?: string;
   pricing: {
     totalDesignUpcharge: number;
     breakdown: Array<{
@@ -25,6 +29,7 @@ export interface TrouserDesignPayload {
 export function mapTrouserDesignPayload(
   rawSelections: TrouserSelections,
   optionSet: MtmOptionSet = trouserOptionSet,
+  fabric?: { id: string; name: string } | null,
 ): TrouserDesignPayload {
   const normalized = normalizeTrouserSelections(rawSelections, optionSet);
   const validation = validateTrouserSelections(normalized.selections, optionSet);
@@ -40,6 +45,8 @@ export function mapTrouserDesignPayload(
     optionSet: optionSet.handle,
     optionSetVersion: optionSet.version,
     selections,
+    fabricId: fabric?.id,
+    fabricName: fabric?.name,
     pricing: {
       totalDesignUpcharge: pricing.total,
       breakdown: pricing.breakdown,

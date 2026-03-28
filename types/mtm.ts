@@ -1,4 +1,4 @@
-export type MtmCategory = "suit" | "shirt" | "trouser" | "overcoat" | "blazer" | "vest";
+export type MtmCategory = "suit" | "shirt" | "trouser" | "overcoat" | "blazer" | "vest" | "jacket";
 
 /**
  * Re-export generic canonical payload type from MTM schema

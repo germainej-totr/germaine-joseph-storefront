@@ -120,3 +120,51 @@ model ProductionSpec {
   status       String     @default("queued")
   createdAt    DateTime   @default(now())
 }
+
+// --- 8. Fabric Catalogue (A16) ---
+model Fabric {
+  id              String   @id @default(cuid())
+  /// Human-readable fabric name, e.g. "Zegna Traveller Wool"
+  name            String
+  /// Short description for the browsing UI
+  description     String?
+  /// e.g. "Vitale Barberis Canonico", "Zegna", "Holland & Sherry"
+  mill            String
+  /// Season relevance: all_season | spring_summer | autumn_winter
+  season          String
+  /// Comma-separated composition, e.g. "100% Wool", "80% Wool, 20% Cashmere"
+  composition     String
+  /// Colour family bucket: navy | grey | charcoal | brown | beige | black | blue | green | other
+  colourFamily    String
+  /// Pattern type: plain | stripe | check | windowpane | herringbone | houndstooth | texture | other
+  pattern         String
+  /// Fabric weight in grams per linear metre (g/m)
+  weightGm        Int?
+  /// Internal mill/supplier article code
+  articleCode     String?  @unique
+  /// Cost price in pence / cents (store minor unit to avoid floats)
+  costPricePence  Int?
+  /// Retail upcharge added on top of garment base price, in pence
+  upchargePence   Int      @default(0)
+  /// URL to swatch image
+  swatchImageUrl  String?
+  /// URL to close-up drape image
+  drapeImageUrl   String?
+  /// Comma-separated garment categories this fabric is suitable for, e.g. "trouser,jacket"
+  suitableFor     String
+  /// e.g. "Dry clean only", "Machine wash 30"
+  careInstructions String?
+  /// Whether visible in the storefront selector
+  isActive        Boolean  @default(true)
+  /// Exclusive / limited allocation flag
+  isLimitedEdition Boolean @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([colourFamily])
+  @@index([pattern])
+  @@index([season])
+  @@index([mill])
+  @@index([isActive])
+  @@map("fabrics")
+}
