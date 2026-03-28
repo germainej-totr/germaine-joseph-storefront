@@ -1,5 +1,11 @@
 export type MtmCategory = "suit" | "shirt" | "trouser" | "overcoat" | "blazer" | "vest";
 
+/**
+ * Re-export generic canonical payload type from MTM schema
+ * This is the standard contract across design, fit, booking, commerce, and order systems
+ */
+export type { MtmCanonicalPayload, MtmCanonicalPayloadStrict } from '../lib/mtm/MtmCanonicalSchema.ts';
+
 export interface GJOptionSet {
   id?: string;
   handle?: string;

@@ -18,6 +18,17 @@ import {
   FIT_PROFILE_LIST_RESPONSE_SCHEMA,
   FIT_PROFILE_UPDATE_SCHEMA,
 } from '../lib/fit/FitProfileSchema.ts';
+import {
+  MTM_CANONICAL_PAYLOAD_SCHEMA,
+  MTM_CANONICAL_PAYLOAD_STRICT_SCHEMA,
+} from '../lib/mtm/MtmCanonicalSchema.ts';
+import {
+  validateCanonicalPayload,
+  validateCanonicalPayloadForPersistence,
+  validatePayloadWithVersionCheck,
+  isPayloadReadyForCommerce,
+  isPayloadReadyForFulfilment,
+} from '../lib/mtm/MtmCanonicalValidator.ts';
 import { FALLBACK_SERVICE_TYPES } from '../lib/booking/serviceTypeCatalogClient.ts';
 
 function assertValid(name: string, result: ZodSafeParseResult<unknown>) {
@@ -243,6 +254,178 @@ assertInvalid(
   BOOKING_SERVICE_TYPE_CATALOG_RESPONSE_SCHEMA.safeParse({
     serviceTypes: [{ id: 'not-real', label: 'Broken' }],
   }),
+);
+
+// A14: Canonical MTM Payload Schema Tests
+assertValid(
+  'mtm canonical payload minimum valid',
+  MTM_CANONICAL_PAYLOAD_SCHEMA.safeParse({
+    category: 'trouser',
+    createdAt: new Date().toISOString(),
+    fitProfile: {
+      email: 'customer@example.com',
+      fitPreference: 'regular',
+    },
+    design: null,
+    mtmSpec: {
+      category: 'trouser',
+      options: { length: 'standard' },
+      measurements: { waist: 32, length: 32 },
+    },
+  }),
+);
+
+assertValid(
+  'mtm canonical payload maximum valid',
+  MTM_CANONICAL_PAYLOAD_SCHEMA.safeParse({
+    version: 'v1',
+    id: 'canonical_1',
+    category: 'trouser',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    createdBy: 'designer_1',
+    fitProfile: {
+      email: 'customer@example.com',
+      fitPreference: 'slim',
+      jacketSize: 40,
+      trouserSize: 32,
+      appointmentDate: '2026-04-01',
+      appointmentTime: '10:00 AM',
+      fitProfileId: 'fit_123',
+      customerId: 'cust_456',
+      fitGateVersion: 'v1',
+    },
+    design: {
+      category: 'trouser',
+      optionSet: 'trouser-core-v1',
+      optionSetVersion: 'v1',
+      selections: { fabric: 'wool', style: 'tailored' },
+      pricing: {
+        total: 150.0,
+        breakdown: [
+          { key: 'base', label: 'Base Price', amount: 100.0 },
+          { key: 'upgrade', label: 'Premium Fabric', amount: 50.0 },
+        ],
+      },
+      validation: {
+        isValid: true,
+        errors: [],
+      },
+      createdAt: new Date().toISOString(),
+    },
+    fit: {
+      attributes: { chest: 98, waist: 82 },
+      measurements: { waist: 82, length: 100 },
+    },
+    mtmSpec: {
+      category: 'trouser',
+      fabricCode: 'WL001',
+      options: { fabric: 'wool', style: 'tailored' },
+      measurements: { waist: 82, length: 100 },
+      notes: 'Premium tailoring',
+      fitGateVersion: 'v1',
+      fitProfileId: 'fit_123',
+    },
+    lineItemProperties: {
+      gjm_mtm_category: 'trouser',
+      gjm_fit_profile_id: 'fit_123',
+    },
+    metadata: { source: 'configure_fit_v1', timestamp: new Date().toISOString() },
+  }),
+);
+
+assertInvalid(
+  'mtm canonical payload missing category',
+  MTM_CANONICAL_PAYLOAD_SCHEMA.safeParse({
+    createdAt: new Date().toISOString(),
+    fitProfile: { email: 'test@example.com', fitPreference: 'regular' },
+    mtmSpec: {
+      category: 'trouser',
+      options: {},
+      measurements: { waist: 32 },
+    },
+  }),
+);
+
+assertInvalid(
+  'mtm canonical payload missing fit profile email',
+  MTM_CANONICAL_PAYLOAD_SCHEMA.safeParse({
+    category: 'trouser',
+    createdAt: new Date().toISOString(),
+    fitProfile: { fitPreference: 'regular' },
+    mtmSpec: {
+      category: 'trouser',
+      options: {},
+      measurements: { waist: 32 },
+    },
+  }),
+);
+
+assertValid(
+  'mtm canonical strict payload with required fields',
+  MTM_CANONICAL_PAYLOAD_STRICT_SCHEMA.safeParse({
+    version: 'v1',
+    id: 'canonical_1',
+    category: 'trouser',
+    createdAt: new Date().toISOString(),
+    fitProfile: {
+      email: 'customer@example.com',
+      fitPreference: 'regular',
+    },
+    design: null,
+    mtmSpec: {
+      category: 'trouser',
+      options: {},
+      measurements: { waist: 32 },
+    },
+  }),
+);
+
+// Test validator functions
+const validPayload = {
+  version: 'v1',
+  id: 'test_1',
+  category: 'trouser',
+  createdAt: new Date().toISOString(),
+  fitProfile: {
+    email: 'test@example.com',
+    fitPreference: 'regular',
+    fitProfileId: 'fit_1',
+  },
+  design: {
+    category: 'trouser',
+    optionSet: 'trouser-v1',
+    optionSetVersion: 'v1',
+    selections: {},
+    pricing: { total: 0 },
+  },
+  mtmSpec: {
+    category: 'trouser',
+    options: {},
+    measurements: { waist: 32, length: 32 },
+  },
+};
+
+assert.equal(validateCanonicalPayload(validPayload).ok, true, 'valid payload should validate');
+assert.equal(
+  validateCanonicalPayloadForPersistence(validPayload).ok,
+  true,
+  'valid payload should pass persistence validation',
+);
+assert.equal(
+  validatePayloadWithVersionCheck(validPayload).ok,
+  true,
+  'valid payload should pass version check',
+);
+assert.equal(
+  isPayloadReadyForCommerce(validPayload),
+  true,
+  'valid payload should be ready for commerce',
+);
+assert.equal(
+  isPayloadReadyForFulfilment(validPayload),
+  true,
+  'valid payload should be ready for fulfilment',
 );
 
 console.log('API contract schemas: regression checks passed');
