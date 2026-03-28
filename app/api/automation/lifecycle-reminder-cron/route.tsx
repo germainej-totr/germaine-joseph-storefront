@@ -1,11 +1,27 @@
 import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
-import { render } from '@react-email/render';
-import RefitReminderEmail from '@/components/emails/RefitReminderEmail';
-import { findStaleProfiles, calculateProfileAgeDays } from '@/lib/automation/staleProfileQuery';
-import type { LifecycleEventPayload } from '@/lib/analytics/lifecycleEventContract';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import {
+  listSavedFitReactivationCandidates,
+  listRefitReminderCandidates,
+  listPreEventBookingReminderCandidates,
+  listPostEventFollowupCandidates,
+  markSavedFitReactivationSent,
+  markRefitReminderSent,
+  markBookingPreEventReminderSent,
+  markBookingPostEventFollowupSent,
+  readBookingLocationAddress,
+  toDateAndTimeSlot,
+  DEFAULT_LIFECYCLE_AUTOMATION_CONFIG,
+} from '@/lib/automation/lifecycleAutomationService';
+import { emitLifecycleMarketingEvent } from '@/lib/automation/lifecycleMarketingEvents';
+import {
+  sendBookingPostVisitFollowupEmail,
+  sendBookingUpcomingReminderEmail,
+  sendRefitReminderLifecycleEmail,
+  sendSavedFitReactivationEmail,
+} from '@/lib/resend';
+import { formatAppointmentLabel } from '@/lib/booking/calendar';
+import { getServiceTypeConfig, isServiceType } from '@/lib/booking/serviceTypes';
+import { getLifecycleEventMap, getKlaviyoTriggerPlan, getPosthogTriggerPlan } from '@/lib/automation/lifecycleEventMap';
 
 /**
  * POST /api/automation/lifecycle-reminder-cron
@@ -18,6 +34,9 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export async function POST(request: Request) {
   const cronSecret = request.headers.get('x-vercel-cron-secret');
   const expectedSecret = process.env.VERCEL_CRON_SECRET;
+  const url = new URL(request.url);
+  const dryRun = url.searchParams.get('dryRun') === '1';
+  const now = new Date();
 
   // Verify cron secret if configured
   if (expectedSecret && cronSecret !== expectedSecret) {
@@ -25,92 +44,231 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Find stale fit profiles (updated 6+ months ago, or approaching that threshold)
-    const staleProfiles = await findStaleProfiles({ limit: 50 });
+    const appBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const savedFitReactivationCandidates = await listSavedFitReactivationCandidates(
+      now,
+      DEFAULT_LIFECYCLE_AUTOMATION_CONFIG,
+    );
+    const refitCandidates = await listRefitReminderCandidates(now, DEFAULT_LIFECYCLE_AUTOMATION_CONFIG);
+    const preEventCandidates = await listPreEventBookingReminderCandidates(
+      now,
+      DEFAULT_LIFECYCLE_AUTOMATION_CONFIG,
+    );
+    const postEventCandidates = await listPostEventFollowupCandidates(
+      now,
+      DEFAULT_LIFECYCLE_AUTOMATION_CONFIG,
+    );
 
-    if (!staleProfiles.length) {
-      return NextResponse.json({
-        ok: true,
-        message: 'No stale profiles found',
-        profilesProcessed: 0,
-        emailsSent: 0,
-      });
-    }
+    const savedFitResults = await Promise.all(
+      savedFitReactivationCandidates.map(async (profile) => {
+        const emailRes = dryRun
+          ? { ok: true, id: 'dry-run' }
+          : await sendSavedFitReactivationEmail({
+              to: profile.email,
+              customerName: profile.profileName || 'Valued Customer',
+              profileAgeDays: profile.ageDays,
+              reactivationUrl: `${appBaseUrl}/fit/smart?campaign=saved-fit-reactivation&profile=${profile.id}`,
+            });
 
-    // Send reminders and track events
-    const results = await Promise.all(
-      staleProfiles.map(async (profile) => {
-        const ageDays = calculateProfileAgeDays(profile.updatedAt);
-
-        try {
-          // Render email
-          const emailHtml = await render(
-            <RefitReminderEmail
-              customerName={profile.profile_name || 'Valued Customer'}
-              lastFitDate={profile.updatedAt}
-              estimatedDaysSinceFit={ageDays}
-              reengagementLink={`${process.env.NEXT_PUBLIC_APP_URL}/fit/smart?campaign=refit-reminder&profile=${profile.id}`}
-            />,
-          );
-
-          // Send via Resend
-          const sendResult = await resend.emails.send({
-            from: process.env.RESEND_FROM || 'Germaine Joseph <noreply@germainejoseph.com>',
-            to: profile.email!,
-            subject: 'Your Fit Refresh Is Ready — Updated Measurements',
-            html: emailHtml,
+        if (emailRes.ok) {
+          await emitLifecycleMarketingEvent('saved_fit_reactivation_sent', {
+            email: profile.email,
+            distinctId: profile.customerId || profile.id,
+            occurredAt: now.toISOString(),
+            properties: {
+              fitProfileId: profile.id,
+              profileAgeDays: profile.ageDays,
+              campaignId: `saved-fit-reactivation-${now.toISOString().slice(0, 10)}`,
+              source: 'lifecycle-reminder-cron',
+            },
+          }).catch((error) => {
+            console.error('saved_fit_reactivation_sent event emit failed:', error);
           });
 
-          const emailId = sendResult.data?.id;
-          const sendError = sendResult.error;
-
-          // Track lifecycle event
-          const lifecycleEvent: LifecycleEventPayload = {
-            event_name: 'fit_check_reminder_sent',
-            occurred_at: new Date().toISOString(),
-            customer_id: profile.customerId!,
-            fit_profile_id: profile.id,
-            campaign_id: `lifecycle-reminder-${new Date().toISOString().split('T')[0]}`,
-            profile_age_days: ageDays,
-            trigger_reason: 'passed_6_month_threshold',
-          };
-
-          // Post to analytics (fire and forget)
-          fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/analytics/mtm-gate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(lifecycleEvent),
-            keepalive: true,
-          }).catch((err) => console.error('Analytics event failed:', err));
-
-          return {
-            success: !!emailId && !sendError,
-            profileId: profile.id,
-            email: profile.email,
-            ageDays,
-            emailId,
-            error: sendError?.message,
-          };
-        } catch (error) {
-          return {
-            success: false,
-            profileId: profile.id,
-            email: profile.email,
-            ageDays,
-            error: error instanceof Error ? error.message : 'Unknown error',
-          };
+          if (!dryRun) {
+            await markSavedFitReactivationSent(profile.id, profile.technicalSpecs, now);
+          }
         }
+
+        return {
+          flow: 'saved_fit_reactivation',
+          success: emailRes.ok,
+          profileId: profile.id,
+          email: profile.email,
+          ageDays: profile.ageDays,
+          error: emailRes.ok ? undefined : emailRes.error,
+        };
       }),
     );
 
-    const successCount = results.filter((r) => r.success).length;
+    const refitResults = await Promise.all(
+      refitCandidates.map(async (profile) => {
+        const emailRes = dryRun
+          ? { ok: true, id: 'dry-run' }
+          : await sendRefitReminderLifecycleEmail({
+              to: profile.email,
+              customerName: profile.profileName || 'Valued Customer',
+              profileAgeDays: profile.ageDays,
+              lastFitDate: profile.updatedAt,
+              reengagementLink: `${appBaseUrl}/fit/smart?campaign=refit-reminder&profile=${profile.id}`,
+            });
+
+        if (emailRes.ok) {
+          await emitLifecycleMarketingEvent('refit_reminder_sent', {
+            email: profile.email,
+            distinctId: profile.customerId || profile.id,
+            occurredAt: now.toISOString(),
+            properties: {
+              fitProfileId: profile.id,
+              profileAgeDays: profile.ageDays,
+              campaignId: `refit-reminder-${now.toISOString().slice(0, 10)}`,
+              source: 'lifecycle-reminder-cron',
+            },
+          }).catch((error) => {
+            console.error('refit_reminder_sent event emit failed:', error);
+          });
+
+          if (!dryRun) {
+            await markRefitReminderSent(profile.id, profile.technicalSpecs, now);
+          }
+        }
+
+        return {
+          flow: 'refit_reminder',
+          success: emailRes.ok,
+          profileId: profile.id,
+          email: profile.email,
+          ageDays: profile.ageDays,
+          error: emailRes.ok ? undefined : emailRes.error,
+        };
+      }),
+    );
+
+    const preEventResults = await Promise.all(
+      preEventCandidates.map(async (booking) => {
+        const location = readBookingLocationAddress(booking.location);
+        const parts = toDateAndTimeSlot(booking.startAt);
+        const serviceTypeConfig = isServiceType(booking.serviceType)
+          ? await getServiceTypeConfig(booking.serviceType).catch(() => null)
+          : null;
+        const appointmentMode = serviceTypeConfig?.label || booking.serviceType;
+
+        const emailRes = dryRun
+          ? { ok: true, id: 'dry-run' }
+          : await sendBookingUpcomingReminderEmail({
+              to: booking.email,
+              appointmentLabel: formatAppointmentLabel(parts.date, parts.timeSlot),
+              appointmentMode,
+              location,
+              manageUrl: `${appBaseUrl}/booking-confirmed?bookingId=${encodeURIComponent(booking.id)}`,
+            });
+
+        if (emailRes.ok) {
+          await emitLifecycleMarketingEvent('booking_pre_event_reminder_sent', {
+            email: booking.email,
+            distinctId: booking.id,
+            occurredAt: now.toISOString(),
+            properties: {
+              bookingId: booking.id,
+              serviceType: booking.serviceType,
+              startAtIso: booking.startAt.toISOString(),
+              source: 'lifecycle-reminder-cron',
+            },
+          }).catch((error) => {
+            console.error('booking_pre_event_reminder_sent event emit failed:', error);
+          });
+
+          if (!dryRun) {
+            await markBookingPreEventReminderSent(booking.id, booking.notes, now);
+          }
+        }
+
+        return {
+          flow: 'booking_pre_event',
+          success: emailRes.ok,
+          bookingId: booking.id,
+          email: booking.email,
+          error: emailRes.ok ? undefined : emailRes.error,
+        };
+      }),
+    );
+
+    const postEventResults = await Promise.all(
+      postEventCandidates.map(async (booking) => {
+        const location = readBookingLocationAddress(booking.location);
+        const parts = toDateAndTimeSlot(booking.startAt);
+        const serviceTypeConfig = isServiceType(booking.serviceType)
+          ? await getServiceTypeConfig(booking.serviceType).catch(() => null)
+          : null;
+        const appointmentMode = serviceTypeConfig?.label || booking.serviceType;
+
+        const emailRes = dryRun
+          ? { ok: true, id: 'dry-run' }
+          : await sendBookingPostVisitFollowupEmail({
+              to: booking.email,
+              appointmentLabel: formatAppointmentLabel(parts.date, parts.timeSlot),
+              appointmentMode,
+              location,
+              manageUrl: `${appBaseUrl}/dashboard`,
+            });
+
+        if (emailRes.ok) {
+          await emitLifecycleMarketingEvent('booking_post_event_followup_sent', {
+            email: booking.email,
+            distinctId: booking.id,
+            occurredAt: now.toISOString(),
+            properties: {
+              bookingId: booking.id,
+              serviceType: booking.serviceType,
+              startAtIso: booking.startAt.toISOString(),
+              source: 'lifecycle-reminder-cron',
+            },
+          }).catch((error) => {
+            console.error('booking_post_event_followup_sent event emit failed:', error);
+          });
+
+          if (!dryRun) {
+            await markBookingPostEventFollowupSent(booking.id, booking.notes, now);
+          }
+        }
+
+        return {
+          flow: 'booking_post_event',
+          success: emailRes.ok,
+          bookingId: booking.id,
+          email: booking.email,
+          error: emailRes.ok ? undefined : emailRes.error,
+        };
+      }),
+    );
+
+    const allResults = [
+      ...savedFitResults,
+      ...refitResults,
+      ...preEventResults,
+      ...postEventResults,
+    ];
+    const successCount = allResults.filter((item) => item.success).length;
 
     return NextResponse.json({
       ok: true,
-      message: `Sent ${successCount}/${results.length} refit reminders`,
-      profilesProcessed: results.length,
+      message: `Processed ${successCount}/${allResults.length} lifecycle actions`,
+      dryRun,
+      lifecycleEventMap: getLifecycleEventMap(),
+      triggerPlan: {
+        klaviyo: getKlaviyoTriggerPlan(),
+        posthog: getPosthogTriggerPlan(),
+      },
+      counts: {
+        savedFitCandidates: savedFitReactivationCandidates.length,
+        refitCandidates: refitCandidates.length,
+        preEventCandidates: preEventCandidates.length,
+        postEventCandidates: postEventCandidates.length,
+      },
+      profilesProcessed: savedFitReactivationCandidates.length + refitCandidates.length,
+      bookingsProcessed: preEventCandidates.length + postEventCandidates.length,
       emailsSent: successCount,
-      results: process.env.NODE_ENV === 'development' ? results : undefined, // Debug in dev only
+      results: process.env.NODE_ENV === 'development' ? allResults : undefined,
     });
   } catch (error) {
     console.error('Lifecycle cron error:', error);
@@ -129,11 +287,6 @@ export async function POST(request: Request) {
  * Allows triggers like: curl -H "x-vercel-cron-secret: YOUR_SECRET" https://your-app.com/api/automation/lifecycle-reminder-cron
  */
 export async function GET(request: Request) {
-  // Only allow GET in development for ease of testing
-  if (process.env.NODE_ENV !== 'development') {
-    return NextResponse.json({ ok: false, error: 'Use POST only in production' }, { status: 405 });
-  }
-
-  // Reuse POST logic
+  // Allow explicit GET invocation for test and diagnostics.
   return POST(request);
 }

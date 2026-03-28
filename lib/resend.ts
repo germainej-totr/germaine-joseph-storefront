@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { render } from "@react-email/render";
 import { BookingConfirmationEmail } from "@/components/emails/BookingConfirmation";
+import RefitReminderEmail from "@/components/emails/RefitReminderEmail";
 
 type SmartFitEmailInput = {
   to?: string;
@@ -73,6 +74,29 @@ type BookingLifecycleEmailInput = {
 
 type FitRefreshRequiredEmailInput = BookingLifecycleEmailInput & {
   fitRefreshUrl: string;
+};
+
+type SavedFitReactivationEmailInput = {
+  to: string;
+  customerName: string;
+  profileAgeDays: number;
+  reactivationUrl: string;
+};
+
+type RefitReminderLifecycleEmailInput = {
+  to: string;
+  customerName: string;
+  profileAgeDays: number;
+  lastFitDate: Date;
+  reengagementLink: string;
+};
+
+type BookingTimelineEmailInput = {
+  to: string;
+  appointmentLabel: string;
+  appointmentMode: string;
+  location: string;
+  manageUrl?: string;
 };
 
 export async function sendBookingConfirmationEmail(input: BookingConfirmationEmailInput) {
@@ -185,6 +209,121 @@ export async function sendFitRefreshRequiredEmail(input: FitRefreshRequiredEmail
         <p><strong>Location:</strong> ${input.location}</p>
         <p><a href="${input.fitRefreshUrl}">Complete Fit Refresh</a></p>
         <p>Once completed, our system will finalize your booking details.</p>
+      `,
+    });
+
+    return { ok: true, id: result.data?.id };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function sendSavedFitReactivationEmail(input: SavedFitReactivationEmailInput) {
+  const from = process.env.RESEND_FROM;
+
+  if (!process.env.RESEND_API_KEY || !from) {
+    return { ok: false, error: "Missing RESEND_API_KEY or RESEND_FROM" };
+  }
+
+  try {
+    const result = await resend.emails.send({
+      from,
+      to: input.to,
+      subject: 'Your Saved Fit Is Ready to Re-Activate - Germaine Joseph',
+      html: `
+        <h2>Your Saved Fit Is Nearly Due for Refresh</h2>
+        <p>Hi ${input.customerName},</p>
+        <p>Your fit profile is currently <strong>${input.profileAgeDays} days old</strong>.</p>
+        <p>Before your next order, we recommend a quick fit check so your saved profile stays precise.</p>
+        <p><a href="${input.reactivationUrl}">Review and reactivate your saved fit</a></p>
+        <p>If your measurements have changed, you can start a guided refit flow directly from that page.</p>
+      `,
+    });
+
+    return { ok: true, id: result.data?.id };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function sendRefitReminderLifecycleEmail(input: RefitReminderLifecycleEmailInput) {
+  const from = process.env.RESEND_FROM;
+
+  if (!process.env.RESEND_API_KEY || !from) {
+    return { ok: false, error: "Missing RESEND_API_KEY or RESEND_FROM" };
+  }
+
+  try {
+    const html = await render(
+      RefitReminderEmail({
+        customerName: input.customerName,
+        lastFitDate: input.lastFitDate,
+        estimatedDaysSinceFit: input.profileAgeDays,
+        reengagementLink: input.reengagementLink,
+      }),
+    );
+
+    const result = await resend.emails.send({
+      from,
+      to: input.to,
+      subject: 'Your Fit Refresh Is Ready - Updated Measurements',
+      html,
+    });
+
+    return { ok: true, id: result.data?.id };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function sendBookingUpcomingReminderEmail(input: BookingTimelineEmailInput) {
+  const from = process.env.RESEND_FROM;
+
+  if (!process.env.RESEND_API_KEY || !from) {
+    return { ok: false, error: "Missing RESEND_API_KEY or RESEND_FROM" };
+  }
+
+  try {
+    const result = await resend.emails.send({
+      from,
+      to: input.to,
+      subject: 'Reminder: Your Fitting Is Tomorrow - Germaine Joseph',
+      html: `
+        <h2>Your Appointment Is Coming Up</h2>
+        <p>This is a reminder for your fitting appointment:</p>
+        <p><strong>Date & Time:</strong> ${input.appointmentLabel}</p>
+        <p><strong>Mode:</strong> ${input.appointmentMode}</p>
+        <p><strong>Location:</strong> ${input.location}</p>
+        ${input.manageUrl ? `<p><a href="${input.manageUrl}">Manage your booking</a></p>` : ''}
+        <p>We look forward to welcoming you.</p>
+      `,
+    });
+
+    return { ok: true, id: result.data?.id };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function sendBookingPostVisitFollowupEmail(input: BookingTimelineEmailInput) {
+  const from = process.env.RESEND_FROM;
+
+  if (!process.env.RESEND_API_KEY || !from) {
+    return { ok: false, error: "Missing RESEND_API_KEY or RESEND_FROM" };
+  }
+
+  try {
+    const result = await resend.emails.send({
+      from,
+      to: input.to,
+      subject: 'Thank You for Visiting Germaine Joseph',
+      html: `
+        <h2>Thank You for Your Appointment</h2>
+        <p>We hope your fitting on <strong>${input.appointmentLabel}</strong> was excellent.</p>
+        <p><strong>Mode:</strong> ${input.appointmentMode}</p>
+        <p><strong>Location:</strong> ${input.location}</p>
+        <p>Your fit details are now available for your next made-to-measure order.</p>
+        ${input.manageUrl ? `<p><a href="${input.manageUrl}">View booking details</a></p>` : ''}
       `,
     });
 
