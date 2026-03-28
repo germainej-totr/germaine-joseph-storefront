@@ -132,3 +132,23 @@ export const ADD_MTM_TROUSER_REQUEST_SCHEMA = z.object({
 });
 
 export type AddMtmTrouserRequest = z.infer<typeof ADD_MTM_TROUSER_REQUEST_SCHEMA>;
+
+/**
+ * Generic MTM item add request (works for any MTM category, not just trouser)
+ */
+export const ADD_MTM_ITEM_REQUEST_SCHEMA = z.object({
+  variantId: z.string().min(1, 'variantId is required'),
+  quantity: z.number().int().positive().optional(),
+  customAttributes: z.record(z.string(), z.string()).refine(
+    (value) => Object.keys(value).length > 0,
+    'customAttributes cannot be empty',
+  ),
+  metadata: z
+    .object({
+      source: z.string().optional(),
+      timestamp: z.string().optional(),
+    })
+    .optional(),
+});
+
+export type AddMtmItemRequest = z.infer<typeof ADD_MTM_ITEM_REQUEST_SCHEMA>;

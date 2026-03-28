@@ -36,4 +36,4 @@ Guarantee that MTM context survives cart, checkout, and order creation in Shopif
 
 ## Status
 
-Specified and ready for implementation.
+Implemented in repo with generic ShopifyAddToCartBridge, ShopifyOrderAttributeMapper for MTM context extraction, dedicated POST /api/cart/add-mtm-item endpoint, and regression tests for Shopify mapping schemas. Cart integration uses gjm_* line item attributes for canonical MTM payload persistence through checkout and order creation.

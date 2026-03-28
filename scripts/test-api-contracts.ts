@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import type { ZodSafeParseResult } from 'zod';
 
 import {
+  ADD_MTM_ITEM_REQUEST_SCHEMA,
   ADD_MTM_TROUSER_REQUEST_SCHEMA,
   AVAILABILITY_REQUEST_SCHEMA,
   BOOKING_SERVICE_TYPE_CATALOG_RESPONSE_SCHEMA,
@@ -206,6 +207,26 @@ assertInvalid(
   'add mtm trouser empty attributes',
   ADD_MTM_TROUSER_REQUEST_SCHEMA.safeParse({
     variantId: 'gid://shopify/ProductVariant/456',
+    customAttributes: {},
+  }),
+);
+
+assertValid(
+  'add mtm item valid payload',
+  ADD_MTM_ITEM_REQUEST_SCHEMA.safeParse({
+    variantId: 'gid://shopify/ProductVariant/789',
+    quantity: 2,
+    customAttributes: {
+      gjm_mtm_category: 'jacket',
+      gjm_fit_profile_id: 'fit_profile_2',
+    },
+  }),
+);
+
+assertInvalid(
+  'add mtm item empty attributes',
+  ADD_MTM_ITEM_REQUEST_SCHEMA.safeParse({
+    variantId: 'gid://shopify/ProductVariant/789',
     customAttributes: {},
   }),
 );
