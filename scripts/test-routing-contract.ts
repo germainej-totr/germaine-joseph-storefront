@@ -28,6 +28,15 @@ function assertContains(relativePath: string, expected: string): void {
   );
 }
 
+function assertNotContains(relativePath: string, unexpected: string): void {
+  const source = read(relativePath);
+  assert.equal(
+    source.includes(unexpected),
+    false,
+    `Expected ${relativePath} not to contain: ${unexpected}`,
+  );
+}
+
 // Canonical route files.
 assertFileExists('app/c/page.tsx');
 assertFileExists('app/c/[collectionHandle]/page.tsx');
@@ -46,6 +55,10 @@ assertContains('app/shop/page.tsx', 'href={`/p/${p.handle}`}');
 assertContains('app/shop/[collection]/page.tsx', 'href="/c"');
 assertContains('app/shop/[collection]/page.tsx', 'href={`/c/${entry.handle}`}');
 assertContains('app/shop/[collection]/page.tsx', 'href={`/p/${product.handle}`}');
+
+// Customer-facing confirmation flows should return through canonical collection routes.
+assertContains('components/ConfirmationView.tsx', 'href="/c"');
+assertNotContains('components/ConfirmationView.tsx', 'href="/shop"');
 
 // Recovery flow should return through canonical product path, not demo route.
 assertContains('app/configure-fit/page.tsx', "window.location.href = '/p/mtm-trouser-test-build';");

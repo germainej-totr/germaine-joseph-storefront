@@ -62,7 +62,7 @@ export default function BookingConfirmation({ formData }: { formData: Confirmati
         </p>
       </div>
       
-      <Link href="/shop" className="block w-full mt-8 bg-black text-white py-4 rounded-xl font-bold hover:bg-zinc-800 transition-all text-center">
+      <Link href="/c" className="block w-full mt-8 bg-black text-white py-4 rounded-xl font-bold hover:bg-zinc-800 transition-all text-center">
         Continue to Gallery
       </Link>
     </div>
