@@ -9,6 +9,7 @@ import {
 } from '@/lib/shopify/cart';
 import { normalizeGjmLineItemAttributes, toShopifyAttributeInput } from '@/lib/shopify/gjmLineItemAttributes';
 import { ADD_MTM_ITEM_REQUEST_SCHEMA, type AddMtmItemRequest } from '@/lib/contracts/apiSchemas';
+import { captureMtmFunnelEvent } from '@/lib/analytics/captureMtmFunnelEvent';
 
 function isRecoverableCartError(error: unknown): boolean {
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
@@ -157,6 +158,35 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
 
     const lineItem = cart.lines?.edges?.[0]?.node;
+
+    const mtmCategory =
+      normalizedAttributes.gjm_mtm_category ||
+      normalizedAttributes.mtm_category ||
+      'mtm';
+
+    captureMtmFunnelEvent({
+      event_name: 'gjm_mtm_cart_add',
+      occurred_at: new Date().toISOString(),
+      mtm_category: mtmCategory,
+      variant_id: variantId,
+      fit_profile_id: normalizedAttributes.gjm_fit_profile_id || undefined,
+      entry_path: normalizedAttributes.gjm_fit_profile_id ? 'saved_fit' : 'full_mtm',
+      funnel_step: 'cart_add',
+      source: 'api/cart/add-mtm-item',
+    }).catch((err) => console.error('gjm_mtm_cart_add event emit failed:', err));
+
+    if (cart.checkoutUrl) {
+      captureMtmFunnelEvent({
+        event_name: 'gjm_mtm_checkout_start',
+        occurred_at: new Date().toISOString(),
+        mtm_category: mtmCategory,
+        variant_id: variantId,
+        fit_profile_id: normalizedAttributes.gjm_fit_profile_id || undefined,
+        entry_path: normalizedAttributes.gjm_fit_profile_id ? 'saved_fit' : 'full_mtm',
+        funnel_step: 'checkout_start',
+        source: 'api/cart/add-mtm-item',
+      }).catch((err) => console.error('gjm_mtm_checkout_start event emit failed:', err));
+    }
 
     return NextResponse.json(
       {

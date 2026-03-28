@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { Ruler, ChevronRight, ChevronLeft, CheckCircle, Loader2 } from 'lucide-react';
 import { resolvePostFitDestination } from '@/lib/fit/flow';
 import { trackFitFlowEvent } from '@/lib/analytics/trackFitFlowEvent';
+import { trackMtmFunnelEvent } from '@/lib/analytics/trackMtmFunnelEvent';
 
 type BlockMeasurements = Record<string, number>;
 type BlockSizeMap = Record<string, BlockMeasurements>;
@@ -79,6 +80,14 @@ function SmartFitWizardContent() {
       email: searchParams.get('email') || undefined,
       productHandle: searchParams.get('productHandle') || undefined,
       variantId: searchParams.get('variantId') || undefined,
+      source: 'fit_smart_ui',
+    });
+
+    trackMtmFunnelEvent('gjm_mtm_configurator_start', {
+      product_handle: searchParams.get('productHandle') || undefined,
+      mtm_category: 'mtm',
+      variant_id: searchParams.get('variantId') || undefined,
+      funnel_step: 'configurator_start',
       source: 'fit_smart_ui',
     });
   }, [searchParams]);
@@ -226,6 +235,15 @@ function SmartFitWizardContent() {
         productHandle: searchParams.get('productHandle') || undefined,
         variantId: searchParams.get('variantId') || undefined,
         destination,
+        source: 'fit_smart_ui',
+      });
+
+      trackMtmFunnelEvent('gjm_mtm_fit_completion', {
+        product_handle: searchParams.get('productHandle') || undefined,
+        mtm_category: 'mtm',
+        variant_id: searchParams.get('variantId') || undefined,
+        fit_profile_id: profile?.id,
+        funnel_step: 'fit_completion',
         source: 'fit_smart_ui',
       });
 

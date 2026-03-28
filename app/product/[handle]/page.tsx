@@ -6,6 +6,7 @@ import SavedFitPromptModal from '@/components/SavedFitPromptModal';
 import { trackMtmGateEvent } from '@/lib/analytics/trackMtmGateEvent';
 import type { MtmGateEventName } from '@/lib/analytics/mtmGateContract';
 import { trackNonTailorConfiguratorEvent } from '@/lib/analytics/trackNonTailorConfiguratorEvent';
+import { trackMtmFunnelEvent } from '@/lib/analytics/trackMtmFunnelEvent';
 import { parseMetafieldBoolean } from '@/lib/metafield';
 import type { ProductDetailResponse } from '@/lib/contracts/productApi';
 
@@ -205,6 +206,23 @@ export default function ProductPage() {
           gate_decision: gate.entryPath,
           gate_reason: gate.reason,
           profile_age_days: profileAgeDays,
+        });
+
+        trackMtmFunnelEvent('gjm_mtm_configurator_start', {
+          product_handle: handle,
+          product_type: String(nextProductType || 'unknown'),
+          mtm_category: String(nextMtmCategory || 'unknown'),
+          variant_id: String(initialVariantId || ''),
+          customer_id: gate.customerId,
+          fit_profile_id: gate.fitProfileId || profileId || undefined,
+          entry_path:
+            gate.entryPath === 'saved_fit_eligible'
+              ? 'saved_fit'
+              : gate.entryPath === 'refit_recommended'
+                ? 'refit'
+                : 'full_mtm',
+          funnel_step: 'configurator_start',
+          source: 'gjm_product_pdp',
         });
       } catch (error) {
         console.error('Failed to load PDP product', { handle, error });
@@ -487,6 +505,17 @@ export default function ProductPage() {
                       option_value: nextValue,
                       selected_options_count: Object.keys(selectedOptions).length,
                       custom_notes_present: Boolean(customNotes.trim()),
+                      source: 'gjm_product_pdp',
+                    });
+                    trackMtmFunnelEvent('gjm_mtm_option_change', {
+                      product_handle: handle,
+                      product_type: String(productType || 'unknown'),
+                      mtm_category: String(mtmCategory || 'unknown'),
+                      variant_id: variantId,
+                      fit_profile_id: fitProfileId || undefined,
+                      option_name: option.name,
+                      option_value: nextValue,
+                      funnel_step: 'option_change',
                       source: 'gjm_product_pdp',
                     });
                     setSelectedOptions((prev) => ({ ...prev, [option.name]: nextValue }));

@@ -10,6 +10,7 @@ import {
 } from '@/lib/shopify/cart';
 import { normalizeGjmLineItemAttributes, toShopifyAttributeInput } from '@/lib/shopify/gjmLineItemAttributes';
 import { CART_ADD_REQUEST_SCHEMA } from '@/lib/contracts/apiSchemas';
+import { captureMtmFunnelEvent } from '@/lib/analytics/captureMtmFunnelEvent';
 
 function isRecoverableCartError(error: unknown): boolean {
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
@@ -123,6 +124,41 @@ export async function POST(req: Request) {
         quantity: quantity ?? 1,
         attributes: customAttributes,
       });
+    }
+
+    const mtmCategory =
+      body.customAttributes?.gjm_mtm_category ||
+      body.customAttributes?.mtm_category ||
+      body.mtmSpec?.category ||
+      'mtm';
+
+    if (String(body.productFlow || '').toLowerCase().includes('mtm') || body.mtmSpec || body.fitProfileId) {
+      captureMtmFunnelEvent({
+        event_name: 'gjm_mtm_cart_add',
+        occurred_at: new Date().toISOString(),
+        mtm_category: String(mtmCategory),
+        variant_id: body.variantId,
+        fit_profile_id: body.fitProfileId || undefined,
+        entry_path: body.fitProfileId ? 'saved_fit' : 'full_mtm',
+        funnel_step: 'cart_add',
+        source: 'api/cart/add',
+      }).catch((err) => console.error('gjm_mtm_cart_add event emit failed:', err));
+
+      if (cart.checkoutUrl) {
+        captureMtmFunnelEvent({
+          event_name: 'gjm_mtm_checkout_start',
+          occurred_at: new Date().toISOString(),
+          mtm_category: String(mtmCategory),
+          variant_id: body.variantId,
+          fit_profile_id: body.fitProfileId || undefined,
+          entry_path: body.fitProfileId ? 'saved_fit' : 'full_mtm',
+          funnel_step: 'checkout_start',
+          source: 'api/cart/add',
+          properties: {
+            checkout_url_present: true,
+          },
+        }).catch((err) => console.error('gjm_mtm_checkout_start event emit failed:', err));
+      }
     }
 
     return NextResponse.json(

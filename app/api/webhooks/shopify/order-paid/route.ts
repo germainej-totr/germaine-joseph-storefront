@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { upsertFittingSession } from "@/actions/fitting";
+import { captureMtmFunnelEvent } from '@/lib/analytics/captureMtmFunnelEvent';
 
 export async function POST(req: Request) {
   try {
@@ -18,6 +19,18 @@ export async function POST(req: Request) {
     */
 
     const body = JSON.parse(rawBody);
+
+    captureMtmFunnelEvent({
+      event_name: 'gjm_mtm_deposit_paid',
+      occurred_at: new Date().toISOString(),
+      order_id: body.id ? String(body.id) : undefined,
+      customer_id: body.customer?.email || body.email || undefined,
+      mtm_category: 'mtm',
+      funnel_step: 'deposit_paid',
+      source: 'webhooks/shopify/order-paid',
+    }).catch((error) => {
+      console.error('gjm_mtm_deposit_paid event emit failed:', error);
+    });
 
     // 3. Extract and map data to your action schema
     const sessionData = {

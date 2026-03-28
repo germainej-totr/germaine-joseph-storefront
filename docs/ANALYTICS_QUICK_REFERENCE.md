@@ -40,6 +40,18 @@ Baseline      Normal churn      Target conversion
 
 ## 🔍 Event Types Tracked
 
+### MTM Funnel Events
+```
+gjm_mtm_configurator_start
+gjm_mtm_option_change
+gjm_mtm_fit_completion
+gjm_mtm_booking_created
+gjm_mtm_deposit_paid
+gjm_mtm_cart_add
+gjm_mtm_checkout_start
+gjm_mtm_order_completed
+```
+
 ### View Event (fires once per page load)
 ```
 gjm_non_tailor_config_view

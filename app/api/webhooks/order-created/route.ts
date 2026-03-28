@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { captureMtmFunnelEvent } from '@/lib/analytics/captureMtmFunnelEvent';
 
 type ShopifyLineItemProperty = {
   name?: string;
@@ -216,6 +217,24 @@ export async function POST(req: Request) {
         status: shopifyResponse.ok ? 'synced_to_shopify' : candidate.status,
       })),
     });
+
+    await Promise.all(
+      productionSpecs.map((candidate) => {
+        const spec = candidate.spec as Record<string, unknown>;
+        return captureMtmFunnelEvent({
+          event_name: 'gjm_mtm_order_completed',
+          occurred_at: new Date().toISOString(),
+          order_id: String(orderId),
+          customer_id: customerEmail,
+          fit_profile_id: candidate.fitProfileId,
+          mtm_category: String(spec.mtmCategory || spec.category || 'mtm'),
+          funnel_step: 'order_completed',
+          source: 'webhooks/order-created',
+        }).catch((error) => {
+          console.error('gjm_mtm_order_completed event emit failed:', error);
+        });
+      }),
+    );
 
     return NextResponse.json({ 
         message: 'Webhook processed', 

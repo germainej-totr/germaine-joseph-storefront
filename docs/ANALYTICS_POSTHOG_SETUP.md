@@ -41,6 +41,28 @@ Tracks engagement and conversion for shoes, leather, and other configurable non-
 
 ---
 
+### 3. MTM Funnel Intelligence Pack (`gjm-mtm-funnel-v1`)
+**Location:** `lib/analytics/posthogMtmFunnelDashboardPack.ts`
+
+Tracks end-to-end MTM funnel conversion and drop-off:
+- Configurator start -> fit completion -> booking -> cart -> checkout -> order completion
+- Option change intensity
+- Saved-fit vs full-MTM performance comparison
+- Booking-to-order drop-off
+- Category-level conversion comparison
+
+**Key Events Tracked:**
+- `gjm_mtm_configurator_start`
+- `gjm_mtm_option_change`
+- `gjm_mtm_fit_completion`
+- `gjm_mtm_booking_created`
+- `gjm_mtm_deposit_paid`
+- `gjm_mtm_cart_add`
+- `gjm_mtm_checkout_start`
+- `gjm_mtm_order_completed`
+
+---
+
 ## Manual Setup in PostHog
 
 ### Step 1: Create Custom Events (if not auto-captured)

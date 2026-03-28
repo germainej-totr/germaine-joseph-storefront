@@ -7,6 +7,7 @@ import { sendBookingConfirmationEmail, sendFitRefreshRequiredEmail } from '@/lib
 import { buildCalendarLinks, formatAppointmentLabel } from '@/lib/booking/calendar';
 import { getServiceTypeConfig } from '@/lib/booking/serviceTypes';
 import { emitBookingLifecycleEvent } from '@/lib/automation/bookingLifecycleEvents';
+import { captureMtmFunnelEvent } from '@/lib/analytics/captureMtmFunnelEvent';
 
 export async function POST(request: Request) {
   try {
@@ -31,6 +32,22 @@ export async function POST(request: Request) {
     }
 
     const isPendingFitRefresh = result.bookingStatus === 'pending_fit_refresh';
+
+    if (result.bookingId) {
+      captureMtmFunnelEvent({
+        event_name: 'gjm_mtm_booking_created',
+        occurred_at: new Date().toISOString(),
+        booking_id: result.bookingId,
+        customer_id: body.customerEmail,
+        service_type: body.serviceType,
+        mtm_category: 'mtm',
+        entry_path: isPendingFitRefresh ? 'refit' : 'full_mtm',
+        funnel_step: 'booking_created',
+        source: 'api/bookings/confirm',
+      }).catch((err) => {
+        console.error('gjm_mtm_booking_created event emit failed:', err);
+      });
+    }
 
     if (result.bookingId && body.customerEmail && !isPendingFitRefresh) {
       emitBookingLifecycleEvent('booking_confirmed', {

@@ -23,3 +23,4 @@ export { MTM_GATE_DASHBOARD_PACK } from '@/lib/analytics/posthogMtmDashboardPack
 export type { PostHogDashboardBlock, PostHogDashboardPack } from '@/lib/analytics/posthogMtmDashboardPack';
 
 export { NON_TAILOR_CONFIGURATOR_DASHBOARD_PACK } from '@/lib/analytics/posthogNonTailorConfiguratorPack';
+export { MTM_FUNNEL_DASHBOARD_PACK } from '@/lib/analytics/posthogMtmFunnelDashboardPack';
