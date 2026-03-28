@@ -8,6 +8,8 @@ import { withPrismaRetry } from '@/lib/prisma-retry';
 import { buildOrderReviewSummary } from '@/lib/mtm/MtmOrderReviewSummary';
 import { validateCanonicalPayload } from '@/lib/mtm/MtmCanonicalValidator';
 import { MtmOrderReviewCard } from '@/components/admin/MtmOrderReviewCard';
+import { buildFulfilmentSpec } from '@/lib/mtm/MtmFulfilmentSpecBuilder';
+import { getFabricByArticleCode } from '@/lib/fabric/fabric-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +62,18 @@ export default async function MtmOrderDetailPage({ params }: PageProps) {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const summary = buildOrderReviewSummary(spec.id, parsed.data!);
+  const payload = parsed.data!;
+  const summary = buildOrderReviewSummary(spec.id, payload);
+
+  // Build the fulfilment spec (enrich with fabric if available)
+  const fabricCode = payload.mtmSpec?.fabricCode;
+  const fabricRecord = fabricCode
+    ? await getFabricByArticleCode(fabricCode).catch(() => null)
+    : null;
+  const fulfilmentSpec = buildFulfilmentSpec(spec.id, payload, {
+    fabric: fabricRecord ?? undefined,
+  });
+  const specDownloadUrl = `/api/admin/mtm-orders/${spec.id}/spec`;
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
@@ -82,7 +95,11 @@ export default async function MtmOrderDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      <MtmOrderReviewCard summary={summary} />
+      <MtmOrderReviewCard
+        summary={summary}
+        fulfilmentSpec={fulfilmentSpec}
+        specDownloadUrl={specDownloadUrl}
+      />
     </main>
   );
 }
