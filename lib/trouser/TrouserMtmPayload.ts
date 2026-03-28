@@ -12,6 +12,7 @@ interface BuildTrouserMtmPayloadInput {
   trouserSize: number;
   appointmentDate: string;
   appointmentTime: string;
+  fitProfileId?: string;
   bookingId?: string;
   attributes: FitAttributes;
   preferences: FitPreferences;
@@ -30,6 +31,7 @@ export interface CanonicalTrouserMtmPayload {
     trouserSize: number;
     appointmentDate: string;
     appointmentTime: string;
+    fitProfileId?: string;
     bookingId?: string;
   };
   design: ContinueToFitSnapshot | null;
@@ -78,9 +80,10 @@ function buildLineItemProperties(
     gjm_fit_gate_version: payload.design?.optionSetVersion || 'fit-gate-v1',
   };
 
-  if (payload.fitProfile.bookingId) {
-    base.fit_profile_id = payload.fitProfile.bookingId;
-    base.gjm_fit_profile_id = payload.fitProfile.bookingId;
+  const fitProfileId = payload.fitProfile.fitProfileId || payload.fitProfile.bookingId;
+  if (fitProfileId) {
+    base.fit_profile_id = fitProfileId;
+    base.gjm_fit_profile_id = fitProfileId;
   }
 
   if (payload.design) {
@@ -128,7 +131,7 @@ export function buildCanonicalTrouserMtmPayload(
     measurements: pickMeasurements(input.attributes),
     notes: `FitPreference=${input.fitPreference}; Appointment=${input.appointmentDate} ${input.appointmentTime}`,
     fitGateVersion: input.trouserDesign?.optionSetVersion || 'fit-gate-v1',
-    fitProfileId: input.bookingId,
+    fitProfileId: input.fitProfileId || input.bookingId,
   };
 
   const canonical: CanonicalTrouserMtmPayload = {
@@ -141,6 +144,7 @@ export function buildCanonicalTrouserMtmPayload(
       trouserSize: input.trouserSize,
       appointmentDate: input.appointmentDate,
       appointmentTime: input.appointmentTime,
+      fitProfileId: input.fitProfileId,
       bookingId: input.bookingId,
     },
     design: input.trouserDesign,

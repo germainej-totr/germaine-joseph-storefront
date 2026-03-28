@@ -104,7 +104,11 @@ function ManualFitContent() {
         }),
       });
 
-      const payload = await response.json();
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        profile?: { id?: string };
+      };
       if (!response.ok) {
         throw new Error(payload?.error || 'Failed to save manual fit profile');
       }
@@ -118,7 +122,7 @@ function ManualFitContent() {
         eventName: 'gjm_fit_flow_save_success',
         flowName: 'manual',
         email,
-        fitProfileId: payload?.id,
+        fitProfileId: payload?.profile?.id,
         productHandle: searchParams.get('productHandle') || undefined,
         variantId: searchParams.get('variantId') || undefined,
         destination,

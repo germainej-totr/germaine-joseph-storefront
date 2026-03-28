@@ -11,6 +11,12 @@ import {
   RESCHEDULE_AVAILABILITY_QUERY_SCHEMA,
   RESCHEDULE_BOOKING_REQUEST_SCHEMA,
 } from '../lib/contracts/apiSchemas.ts';
+import {
+  FIT_PROFILE_CREATE_SCHEMA,
+  FIT_PROFILE_DETAIL_RESPONSE_SCHEMA,
+  FIT_PROFILE_LIST_RESPONSE_SCHEMA,
+  FIT_PROFILE_UPDATE_SCHEMA,
+} from '../lib/fit/FitProfileSchema.ts';
 import { FALLBACK_SERVICE_TYPES } from '../lib/booking/serviceTypeCatalogClient.ts';
 
 function assertValid(name: string, result: ZodSafeParseResult<unknown>) {
@@ -103,6 +109,64 @@ assertInvalid(
   RESCHEDULE_BOOKING_REQUEST_SCHEMA.safeParse({
     bookingId: 'booking_123',
     date: '2026-04-12',
+  }),
+);
+
+assertValid(
+  'fit profile create valid payload',
+  FIT_PROFILE_CREATE_SCHEMA.safeParse({
+    email: 'customer@example.com',
+    label: 'Primary profile',
+    categoryDefaults: { jacket: { size: '50' }, trouser: { size: '34' } },
+  }),
+);
+assertInvalid(
+  'fit profile create invalid payload',
+  FIT_PROFILE_CREATE_SCHEMA.safeParse({
+    email: 'bad-email',
+  }),
+);
+
+assertValid(
+  'fit profile update valid payload',
+  FIT_PROFILE_UPDATE_SCHEMA.safeParse({
+    label: 'Updated profile',
+    fitPreference: 'Slim Fit',
+  }),
+);
+
+assertValid(
+  'fit profile list response valid payload',
+  FIT_PROFILE_LIST_RESPONSE_SCHEMA.safeParse({
+    ok: true,
+    profiles: [
+      {
+        id: 'fit_123',
+        label: 'Primary profile',
+        email: 'customer@example.com',
+        categoryDefaults: { jacket: { size: '50' } },
+        isActive: true,
+        updatedAt: '2026-03-28T10:00:00.000Z',
+        version: 2,
+      },
+    ],
+    defaultFitProfileId: 'fit_123',
+  }),
+);
+
+assertValid(
+  'fit profile detail response valid payload',
+  FIT_PROFILE_DETAIL_RESPONSE_SCHEMA.safeParse({
+    ok: true,
+    profile: {
+      id: 'fit_123',
+      label: 'Primary profile',
+      email: 'customer@example.com',
+      categoryDefaults: { trouser: { size: '34' } },
+      isActive: true,
+      updatedAt: '2026-03-28T10:00:00.000Z',
+      version: 2,
+    },
   }),
 );
 

@@ -1,11 +1,27 @@
 import { MtmCategory } from "./mtm";
 
+export interface FitCategoryDefault {
+  size?: string | null;
+}
+
+export type FitCategoryDefaults = Partial<Record<MtmCategory, FitCategoryDefault>> & {
+  jacket?: FitCategoryDefault;
+  trouser?: FitCategoryDefault;
+};
+
 export interface FitProfile {
   id: string;
   label: string;
   customerId?: string;
   email?: string;
-  categoryDefaults?: Record<MtmCategory, unknown>;
+  categoryDefaults: FitCategoryDefaults;
+  fitPreference?: string | null;
+  appointmentDate?: string | null;
+  appointmentTime?: string | null;
+  technicalSpecs?: unknown;
+  isActive: boolean;
+  updatedAt: string;
+  version: number;
 }
 
 export interface MeasurementSet {
@@ -20,11 +36,21 @@ export interface MeasurementSet {
 export interface FitProfileCreate {
   email?: string;
   label?: string;
-  categoryDefaults?: Record<MtmCategory, unknown>;
+  categoryDefaults?: FitCategoryDefaults;
   appointmentDate?: string;
   appointmentTime?: string;
   fitPreference?: string;
   technicalSpecs?: Record<string, unknown>;
+}
+
+export interface FitProfileUpdate {
+  label?: string;
+  categoryDefaults?: FitCategoryDefaults;
+  appointmentDate?: string;
+  appointmentTime?: string;
+  fitPreference?: string | null;
+  technicalSpecs?: Record<string, unknown>;
+  isActive?: boolean;
 }
 
 export interface ProductSummary {

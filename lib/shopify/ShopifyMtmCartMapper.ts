@@ -54,8 +54,8 @@ export function mapCanonicalPayloadToLineItemAttributes(
     gjm_trouser_validation: safeStringify(payload.design?.validation || {}),
 
     // Fit profile reference
-    ...(payload.fitProfile.bookingId && {
-      gjm_fit_profile_id: payload.fitProfile.bookingId,
+    ...((payload.fitProfile.fitProfileId || payload.fitProfile.bookingId) && {
+      gjm_fit_profile_id: payload.fitProfile.fitProfileId || payload.fitProfile.bookingId,
     }),
 
     // Fit intake measurements

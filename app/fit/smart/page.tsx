@@ -174,7 +174,7 @@ function SmartFitWizardContent() {
     setSubmitError('');
 
     try {
-      const payload = {
+      const profilePayload = {
         email,
         label: profileName,
         categoryDefaults: {
@@ -197,7 +197,7 @@ function SmartFitWizardContent() {
       const res = await fetch('/api/fit/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(profilePayload),
       });
 
       if (!res.ok) {
@@ -205,7 +205,11 @@ function SmartFitWizardContent() {
         throw new Error(`Profile save failed (${res.status}): ${text}`);
       }
 
-      const profile = await res.json();
+      const responsePayload = (await res.json()) as { ok?: boolean; profile?: { id?: string } };
+      const profile = responsePayload.profile;
+      if (!profile?.id) {
+        throw new Error('Fit profile response did not include an id');
+      }
       document.cookie = `fit_profile_id=${profile.id}; path=/; max-age=31536000; SameSite=Lax`;
       setDone(true);
 

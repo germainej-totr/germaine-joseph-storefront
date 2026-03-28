@@ -1,77 +1,45 @@
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { Prisma, PrismaClient } from '@prisma/client';
-import { FitProfileCreate } from '@/types/fit';
-import { applySessionCookies, createSessionPayload } from '@/lib/session';
 
-const prisma = new PrismaClient();
+import { createSessionPayload, applySessionCookies } from '@/lib/session';
+import { FIT_PROFILE_CREATE_SCHEMA } from '@/lib/fit/FitProfileSchema';
+import { FitProfileService } from '@/lib/fit/FitProfileService';
 
-type CategoryDefaultsInput = Partial<
-  Record<'jacket' | 'trouser', { size?: string | null }>
->;
+export async function GET() {
+  try {
+    const profiles = await FitProfileService.listProfilesForCurrentOwner();
+    const cookieStore = await cookies();
 
-function toPrismaJson(value: unknown): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput {
-  if (value === null || value === undefined) {
-    return Prisma.JsonNull;
+    return NextResponse.json({
+      ok: true,
+      profiles,
+      defaultFitProfileId: cookieStore.get('fit_profile_id')?.value || null,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'unknown_error';
+    const status = message === 'unauthorized' ? 401 : 500;
+    return NextResponse.json({ ok: false, error: message }, { status });
   }
-  return value as Prisma.InputJsonValue;
 }
 
 export async function POST(req: Request) {
   try {
-    const body: FitProfileCreate = await req.json();
-
-    const email = body.email?.trim();
-    if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    const parsed = FIT_PROFILE_CREATE_SCHEMA.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { ok: false, error: 'invalid_payload', details: parsed.error.flatten() },
+        { status: 400 },
+      );
     }
 
-    const categoryDefaults = (body.categoryDefaults ?? {}) as CategoryDefaultsInput;
+    const profile = await FitProfileService.saveProfile(parsed.data);
 
-    console.log('[POST /api/fit/profile] Received body:', JSON.stringify(body, null, 2));
-    console.log('[POST /api/fit/profile] Appointment data:', {
-      appointmentDate: body.appointmentDate,
-      appointmentTime: body.appointmentTime,
-    });
-
-    const existingProfile = await prisma.fitProfile.findUnique({
-      where: { email },
-    });
-
-    let profile;
-    if (existingProfile) {
-      profile = await prisma.fitProfile.update({
-        where: { email },
-        data: {
-          profile_name: body.label || existingProfile.profile_name || 'New Profile',
-          jacketSize: categoryDefaults.jacket?.size || existingProfile.jacketSize,
-          trouserSize: categoryDefaults.trouser?.size || existingProfile.trouserSize,
-          fitPreference: body.fitPreference || existingProfile.fitPreference,
-          appointmentDate: body.appointmentDate || existingProfile.appointmentDate,
-          appointmentTime: body.appointmentTime || existingProfile.appointmentTime,
-          technicalSpecs: toPrismaJson(body.technicalSpecs ?? existingProfile.technicalSpecs),
-        },
-      });
-    } else {
-      profile = await prisma.fitProfile.create({
-        data: {
-          email,
-          profile_name: body.label || 'New Profile',
-          jacketSize: categoryDefaults.jacket?.size || null,
-          trouserSize: categoryDefaults.trouser?.size || null,
-          fitPreference: body.fitPreference || null,
-          appointmentDate: body.appointmentDate || null,
-          appointmentTime: body.appointmentTime || null,
-          technicalSpecs: toPrismaJson(body.technicalSpecs),
-        },
-      });
-    }
-
-    const response = NextResponse.json(profile);
+    const response = NextResponse.json({ ok: true, profile });
     applySessionCookies(
       response,
       createSessionPayload({
-        email,
-        customerId: existingProfile?.customerId || profile.customerId || '',
+        email: profile.email || parsed.data.email || '',
+        customerId: profile.customerId || '',
       }),
     );
 
@@ -85,11 +53,8 @@ export async function POST(req: Request) {
 
     return response;
   } catch (error) {
-    console.error('Error creating/updating fit profile:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json(
-      { error: 'Failed to create/update profile', details: errorMessage },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'unknown_error';
+    const status = message === 'forbidden' ? 403 : message === 'email_required' ? 400 : 500;
+    return NextResponse.json({ ok: false, error: message }, { status });
   }
 }

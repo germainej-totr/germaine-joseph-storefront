@@ -613,7 +613,14 @@ function FitConfiguratorContent() {
         throw new Error(`Failed to create fit profile: ${profileResponse.status} ${profileResponse.statusText} - ${errorText}`);
       }
 
-      const profile = await profileResponse.json();
+      const profilePayloadResponse = (await profileResponse.json()) as {
+        ok?: boolean;
+        profile?: { id?: string };
+      };
+      const profile = profilePayloadResponse.profile;
+      if (!profile?.id) {
+        throw new Error('Fit profile response did not include an id');
+      }
       const clientTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
       const clientLocale = Intl.DateTimeFormat().resolvedOptions().locale || 'en-US';
 
@@ -624,7 +631,7 @@ function FitConfiguratorContent() {
         trouserSize: result.trouserSize,
         appointmentDate: selectedDate,
         appointmentTime: appointmentTimeValue,
-        bookingId: profile.id,
+        fitProfileId: profile.id,
         attributes: {
           ...attributes,
           onLocationAddress,
@@ -667,6 +674,7 @@ function FitConfiguratorContent() {
           trouser: result.trouserSpecs,
         },
         cartAttributes: canonicalAfterProfile.lineItemProperties,
+        fitProfileId: profile.id,
         bookingId: profile.id,
       };
 

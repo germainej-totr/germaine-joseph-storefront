@@ -38,4 +38,4 @@ Make fit data durable, customer-owned, reusable, and commerce-ready.
 
 ## Status
 
-Specified and ready for implementation.
+Implemented in repo with shared fit schema/repository/service layers, ownership-aware fit profile APIs, account summary UI, reusable fit hook, and corrected fit-profile-to-MTM payload handoff.

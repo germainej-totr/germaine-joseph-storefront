@@ -234,6 +234,7 @@ export async function POST(request: Request) {
       jacketSize, 
       trouserSize, 
       technicalSpecs, 
+      fitProfileId,
       bookingId,
       appointmentDate,
       appointmentTime
@@ -262,7 +263,7 @@ export async function POST(request: Request) {
     const existingProfile = await prisma.fitProfile.findFirst({
       where: {
         OR: [
-          { id: bookingId || "00000000-0000-0000-0000-000000000000" },
+          { id: fitProfileId || bookingId || "00000000-0000-0000-0000-000000000000" },
           { email: email || "info@germainejoseph.com" }
         ]
       },

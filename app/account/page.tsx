@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { getSessionContext } from '@/lib/auth';
-import prisma from '@/lib/prisma';
 import AccountSessionActions from '@/components/AccountSessionActions';
 import AccountLinkForm from '@/components/AccountLinkForm';
+import FitProfileSummaryCard from '@/components/FitProfileSummaryCard';
+import { FitProfileService } from '@/lib/fit/FitProfileService';
 
 type AccountPageSearchParams = {
   oauth?: string;
@@ -73,21 +74,7 @@ export default async function AccountPage({
     session = null;
   }
 
-  const profile = session?.email
-    ? await prisma.fitProfile.findUnique({
-        where: { email: session.email },
-        select: {
-          id: true,
-          email: true,
-          profile_name: true,
-          jacketSize: true,
-          trouserSize: true,
-          fitPreference: true,
-          updatedAt: true,
-          isActive: true,
-        },
-      })
-    : null;
+  const profiles = session ? await FitProfileService.listProfilesForCurrentOwner() : [];
 
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-6 py-10">
@@ -169,42 +156,7 @@ export default async function AccountPage({
             <InfoRow label="Session valid until" value={new Date(session.expiresAt).toLocaleString()} />
           </section>
 
-          <section className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm">
-            <div className="mb-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Fit profile</p>
-              <h2 className="mt-2 text-2xl font-semibold text-zinc-950">Current status</h2>
-            </div>
-
-            {profile ? (
-              <>
-                <InfoRow label="Profile" value={profile.profile_name || 'Saved profile'} />
-                <InfoRow label="Jacket size" value={profile.jacketSize || 'Not set'} />
-                <InfoRow label="Trouser size" value={profile.trouserSize || 'Not set'} />
-                <InfoRow label="Preference" value={profile.fitPreference || 'Not set'} />
-                <InfoRow label="Updated" value={profile.updatedAt.toLocaleDateString()} />
-                <InfoRow label="Status" value={profile.isActive ? 'Active' : 'Inactive'} />
-              </>
-            ) : (
-              <p className="text-sm leading-6 text-zinc-600">
-                No fit profile has been associated with this session yet. Start the fitting flow to create one and unlock saved-fit gating.
-              </p>
-            )}
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/configure-fit"
-                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-900 hover:text-zinc-900"
-              >
-                Update fitting
-              </Link>
-              <Link
-                href="/p/mtm-trouser-test-build"
-                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-900 hover:text-zinc-900"
-              >
-                Return to MTM product
-              </Link>
-            </div>
-          </section>
+          <FitProfileSummaryCard initialProfiles={profiles} />
         </div>
       )}
     </main>
