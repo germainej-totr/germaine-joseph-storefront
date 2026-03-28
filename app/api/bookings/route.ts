@@ -1,75 +1,102 @@
+// app/api/bookings/route.ts
+// NOTE: This route is the canonical booking POST entry point for direct/programmatic callers.
+// All booking creation is routed through BookingService.createBooking() to enforce:
+//   - FitGate/fit profile requirements for MTM service types
+//   - Fit freshness policy (fresh / stale / missing)
+//   - Availability capping and lead-time rules
+// Do NOT bypass BookingService here.
 import { NextResponse } from 'next/server';
-import { BookingCreate, BookingRecord } from '@/types/booking';
-import prisma from '@/lib/prisma';
-
-function getLeadTimeHours(serviceType: string): number {
-  if (serviceType === 'home_office') return 48;
-  if (serviceType === 'virtual' || serviceType === 'video_consult') return 2;
-  return 24;
-}
+import { CONFIRM_REQUEST_SCHEMA } from '@/lib/contracts/apiSchemas';
+import { BookingService } from '@/lib/booking-service';
+import { AppointmentRequest } from '@/types/booking';
+import { sendBookingConfirmationEmail, sendFitRefreshRequiredEmail } from '@/lib/resend';
+import { buildCalendarLinks, formatAppointmentLabel } from '@/lib/booking/calendar';
+import { getServiceTypeConfig } from '@/lib/booking/serviceTypes';
+import { emitBookingLifecycleEvent } from '@/lib/automation/bookingLifecycleEvents';
 
 export async function POST(req: Request) {
   try {
-    const body: BookingCreate = await req.json();
-
-    if (!body.email || !body.serviceType || !body.startAt || !body.location?.address) {
-      return NextResponse.json({ error: 'email, serviceType, startAt, and location.address are required' }, { status: 400 });
-    }
-
-    const startAt = new Date(body.startAt);
-    if (Number.isNaN(startAt.getTime())) {
-      return NextResponse.json({ error: 'startAt must be a valid ISO date-time' }, { status: 400 });
-    }
-
-    const leadTimeHours = getLeadTimeHours(body.serviceType);
-    const minimumStart = Date.now() + leadTimeHours * 60 * 60 * 1000;
-    if (startAt.getTime() < minimumStart) {
+    const parsed = CONFIRM_REQUEST_SCHEMA.safeParse(await req.json());
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: `lead_time_violation_${leadTimeHours}h` },
+        { error: 'Invalid request body', details: parsed.error.flatten() },
         { status: 400 },
       );
     }
 
-    const conflicting = await prisma.booking.findFirst({
-      where: {
-        serviceType: body.serviceType,
-        startAt,
-        status: { not: 'cancelled' },
-      },
-      select: { id: true },
-    });
-
-    if (conflicting) {
-      return NextResponse.json({ error: 'slot_conflict' }, { status: 409 });
-    }
-
-    const created = await prisma.booking.create({
-      data: {
-        email: body.email,
-        serviceType: body.serviceType,
-        startAt,
-        location: body.location,
-        fitProfileId: body.fitProfileId || null,
-        notes: body.notes || null,
-        status: 'confirmed',
-      },
-    });
-
-    const record: BookingRecord = {
-      id: created.id,
-      serviceType: created.serviceType as BookingCreate['serviceType'],
-      startAt: created.startAt.toISOString(),
-      location: body.location,
-      email: created.email,
-      fitProfileId: created.fitProfileId || undefined,
-      notes: created.notes || undefined,
-      depositAmount: body.depositAmount,
-      status: created.status,
-      depositStatus: 'none',
-      createdAt: created.createdAt.toISOString(),
+    const body: AppointmentRequest = {
+      ...parsed.data,
+      location: parsed.data.location?.trim() || '',
     };
 
-    return NextResponse.json(record);
+    const result = await BookingService.createBooking(body);
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.message, ...result }, { status: 400 });
+    }
+
+    const isPendingFitRefresh = result.bookingStatus === 'pending_fit_refresh';
+
+    if (result.bookingId && body.customerEmail && !isPendingFitRefresh) {
+      emitBookingLifecycleEvent('booking_confirmed', {
+        bookingId: result.bookingId,
+        email: body.customerEmail,
+        serviceType: body.serviceType,
+        date: body.date,
+        timeSlot: body.timeSlot,
+        location: body.location,
+        source: 'api/bookings',
+      }).catch((err) => console.error('booking_confirmed event emit failed:', err));
+    }
+
+    if (result.bookingId && body.customerEmail && isPendingFitRefresh) {
+      emitBookingLifecycleEvent('booking_fit_refresh_required', {
+        bookingId: result.bookingId,
+        email: body.customerEmail,
+        serviceType: body.serviceType,
+        date: body.date,
+        timeSlot: body.timeSlot,
+        location: body.location,
+        source: 'api/bookings:fit-refresh-required',
+      }).catch((err) => console.error('booking_fit_refresh_required event emit failed:', err));
+    }
+
+    if (body.customerEmail && !isPendingFitRefresh) {
+      const policy = await getServiceTypeConfig(body.serviceType).catch(() => null);
+      const durationMin = policy?.durationMin ?? 60;
+      const links = buildCalendarLinks({
+        title: 'Fitting: Germaine Joseph Bespoke',
+        location: body.location || 'Maison Showroom',
+        date: body.date,
+        timeSlot: body.timeSlot,
+        durationMin,
+      });
+      if (links) {
+        sendBookingConfirmationEmail({
+          to: body.customerEmail,
+          appointmentLabel: formatAppointmentLabel(body.date, body.timeSlot),
+          appointmentMode: policy?.label ?? body.serviceType,
+          location: body.location || 'Maison Showroom',
+          googleCalendarUrl: links.googleCalendarUrl,
+          outlookCalendarUrl: links.outlookCalendarUrl,
+        }).catch((err) => console.error('Booking email send failed:', err));
+      }
+    }
+
+    if (body.customerEmail && isPendingFitRefresh) {
+      const policy = await getServiceTypeConfig(body.serviceType).catch(() => null);
+      sendFitRefreshRequiredEmail({
+        to: body.customerEmail,
+        appointmentLabel: formatAppointmentLabel(body.date, body.timeSlot),
+        appointmentMode: policy?.label ?? body.serviceType,
+        location: body.location || 'Maison Showroom',
+        fitRefreshUrl:
+          result.fitRefreshUrl ||
+          `/configure-fit?email=${encodeURIComponent(body.customerEmail)}`,
+      }).catch((err) => console.error('Fit refresh email send failed:', err));
+    }
+
+    return NextResponse.json(result, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
