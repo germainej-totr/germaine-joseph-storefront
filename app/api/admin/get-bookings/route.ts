@@ -1,17 +1,20 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { withPrismaRetry } from '@/lib/prisma-retry';
 
 export async function GET() {
   try {
     // Fetch bookings with optional fit profile details for admin intake screens.
-    const bookings = await prisma.booking.findMany({
-      orderBy: {
-        startAt: 'desc',
-      },
-      include: {
-        fitProfile: true,
-      },
-    });
+    const bookings = await withPrismaRetry(() =>
+      prisma.booking.findMany({
+        orderBy: {
+          startAt: 'desc',
+        },
+        include: {
+          fitProfile: true,
+        },
+      }),
+    );
 
     const payload = bookings.map((booking) => {
       const fitProfile = booking.fitProfile;

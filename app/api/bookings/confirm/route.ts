@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { BookingService } from '@/lib/booking-service';
 import { AppointmentRequest } from '@/types/booking';
 import { CONFIRM_REQUEST_SCHEMA } from '@/lib/contracts/apiSchemas';
-import { sendBookingConfirmationEmail } from '@/lib/resend';
+import { sendBookingConfirmationEmail, sendFitRefreshRequiredEmail } from '@/lib/resend';
 import { buildCalendarLinks, formatAppointmentLabel } from '@/lib/booking/calendar';
 import { getServiceTypeConfig } from '@/lib/booking/serviceTypes';
 import { emitBookingLifecycleEvent } from '@/lib/automation/bookingLifecycleEvents';
@@ -30,7 +30,9 @@ export async function POST(request: Request) {
       return NextResponse.json(result, { status: 400 });
     }
 
-    if (result.bookingId && body.customerEmail) {
+    const isPendingFitRefresh = result.bookingStatus === 'pending_fit_refresh';
+
+    if (result.bookingId && body.customerEmail && !isPendingFitRefresh) {
       emitBookingLifecycleEvent('booking_confirmed', {
         bookingId: result.bookingId,
         email: body.customerEmail,
@@ -44,8 +46,22 @@ export async function POST(request: Request) {
       });
     }
 
+    if (result.bookingId && body.customerEmail && isPendingFitRefresh) {
+      emitBookingLifecycleEvent('booking_fit_refresh_required', {
+        bookingId: result.bookingId,
+        email: body.customerEmail,
+        serviceType: body.serviceType,
+        date: body.date,
+        timeSlot: body.timeSlot,
+        location: body.location,
+        source: 'api/bookings/confirm:fit-refresh-required',
+      }).catch((err) => {
+        console.error('booking_fit_refresh_required event emit failed:', err);
+      });
+    }
+
     // Send confirmation email (fire-and-forget — never block the response)
-    if (body.customerEmail) {
+    if (body.customerEmail && !isPendingFitRefresh) {
       const policy = await getServiceTypeConfig(body.serviceType).catch(() => null);
       const durationMin = policy?.durationMin ?? 60;
       const links = buildCalendarLinks({
@@ -67,6 +83,17 @@ export async function POST(request: Request) {
         googleCalendarUrl: links.googleCalendarUrl,
         outlookCalendarUrl: links.outlookCalendarUrl,
       }).catch((err) => console.error('Booking email send failed:', err));
+    }
+
+    if (body.customerEmail && isPendingFitRefresh) {
+      const policy = await getServiceTypeConfig(body.serviceType).catch(() => null);
+      sendFitRefreshRequiredEmail({
+        to: body.customerEmail,
+        appointmentLabel: formatAppointmentLabel(body.date, body.timeSlot),
+        appointmentMode: policy?.label ?? body.serviceType,
+        location: body.location || 'Maison Showroom',
+        fitRefreshUrl: result.fitRefreshUrl || `/configure-fit?email=${encodeURIComponent(body.customerEmail)}`,
+      }).catch((err) => console.error('Fit refresh email send failed:', err));
     }
 
     return NextResponse.json(result, { status: 200 });

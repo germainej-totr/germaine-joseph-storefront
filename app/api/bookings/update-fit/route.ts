@@ -4,6 +4,7 @@ import type { Prisma } from '@prisma/client';
 import { Resend } from 'resend';
 import { render } from '@react-email/render';
 import { BookingConfirmationEmail } from '@/components/emails/BookingConfirmation';
+import { emitBookingLifecycleEvent } from '@/lib/automation/bookingLifecycleEvents';
 
 const prisma = new PrismaClient();
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -306,6 +307,55 @@ export async function POST(request: Request) {
         technicalSpecs: mergedTechnicalSpecs as Prisma.InputJsonValue,
       },
     });
+
+    const promotionDate = typeof appointmentDate === 'string' ? appointmentDate : undefined;
+    const promotionTimeSlot = typeof appointmentTime === 'string' ? appointmentTime : undefined;
+    const promoted = await prisma.booking.findFirst({
+      where: {
+        email: existingProfile.email,
+        status: 'pending_fit_refresh',
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        serviceType: true,
+        location: true,
+      },
+    });
+
+    if (promoted) {
+      await prisma.booking.update({
+        where: { id: promoted.id },
+        data: {
+          status: 'confirmed',
+          fitProfileId: existingProfile.id,
+          suggestedJacket: jacketSize ? String(jacketSize) : null,
+          suggestedTrouser: trouserSize ? String(trouserSize) : null,
+        },
+      });
+
+      const promotedLocation =
+        promoted.location &&
+        typeof promoted.location === 'object' &&
+        'address' in (promoted.location as Record<string, unknown>) &&
+        typeof (promoted.location as { address?: unknown }).address === 'string'
+          ? ((promoted.location as { address?: string }).address ?? undefined)
+          : undefined;
+
+      emitBookingLifecycleEvent('booking_confirmed', {
+        bookingId: promoted.id,
+        email: existingProfile.email,
+        serviceType: promoted.serviceType,
+        date: promotionDate,
+        timeSlot: promotionTimeSlot,
+        location: promotedLocation,
+        source: 'api/bookings/update-fit:promote-pending',
+      }).catch((err) => {
+        console.error('booking_confirmed event emit failed during fit refresh promotion:', err);
+      });
+    }
 
     // 2. PRESERVED: Your original tailorNotes formatting
     // 3. PRESERVED: Your full high-end HTML Email Template

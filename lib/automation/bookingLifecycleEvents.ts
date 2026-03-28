@@ -3,7 +3,8 @@ import 'server-only';
 type BookingLifecycleEventName =
   | 'booking_confirmed'
   | 'booking_rescheduled'
-  | 'booking_cancelled';
+  | 'booking_cancelled'
+  | 'booking_fit_refresh_required';
 
 type BookingLifecycleEventPayload = {
   bookingId: string;

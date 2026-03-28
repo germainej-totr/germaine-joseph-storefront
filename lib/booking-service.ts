@@ -3,6 +3,74 @@ import { AppointmentRequest, BookingUpdateRequest, ServiceTypeId } from '@/types
 import { getServiceTypeConfig, isServiceType } from '@/lib/booking/serviceTypes';
 import prisma from '@/lib/prisma';
 
+type FitIntakeStatus = 'fresh' | 'stale' | 'missing';
+
+type FitProfileSnapshot = {
+  id: string;
+  jacketSize: string | null;
+  trouserSize: string | null;
+  fitPreference: string | null;
+  technicalSpecs: unknown;
+  updatedAt: Date;
+};
+
+function requiresFitIntake(serviceType: ServiceTypeId): boolean {
+  return serviceType === 'home_office' || serviceType === 'tailor_fitting';
+}
+
+function getFitFreshnessWindowDays(): number {
+  const raw = Number(process.env.FIT_PROFILE_FRESHNESS_DAYS || 180);
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return 180;
+  }
+  return Math.floor(raw);
+}
+
+function buildFitRefreshUrl(email: string): string {
+  return `/configure-fit?email=${encodeURIComponent(email)}&source=fit-booking-refresh`;
+}
+
+function hasMtmIntakeData(profile: {
+  jacketSize: string | null;
+  trouserSize: string | null;
+  fitPreference: string | null;
+  technicalSpecs: unknown;
+}): boolean {
+  const technicalSpecs =
+    typeof profile.technicalSpecs === 'object' && profile.technicalSpecs !== null
+      ? (profile.technicalSpecs as Record<string, unknown>)
+      : null;
+
+  const attributes =
+    technicalSpecs &&
+    typeof technicalSpecs.attributes === 'object' &&
+    technicalSpecs.attributes !== null
+      ? (technicalSpecs.attributes as Record<string, unknown>)
+      : null;
+
+  const hasCoreSizes = Boolean(profile.jacketSize || profile.trouserSize);
+  const hasFitPreference = Boolean(profile.fitPreference && profile.fitPreference.trim());
+  const hasCoreMeasurements =
+    attributes !== null &&
+    (typeof attributes.chest === 'string' || typeof attributes.chest === 'number') &&
+    (typeof attributes.waist === 'string' || typeof attributes.waist === 'number');
+
+  return hasCoreSizes || (hasFitPreference && hasCoreMeasurements);
+}
+
+function resolveFitIntakeStatus(profile: FitProfileSnapshot | null): FitIntakeStatus {
+  if (!profile) return 'missing';
+  if (!hasMtmIntakeData(profile)) return 'missing';
+
+  const freshnessDays = getFitFreshnessWindowDays();
+  const cutoff = Date.now() - freshnessDays * 24 * 60 * 60 * 1000;
+  if (profile.updatedAt.getTime() < cutoff) {
+    return 'stale';
+  }
+
+  return 'fresh';
+}
+
 function parseTimeSlot(timeSlot: string): { hours: number; minutes: number } | null {
   const match = timeSlot.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (!match) return null;
@@ -159,6 +227,34 @@ export const BookingService = {
       };
     }
 
+    const fitProfile = await prisma.fitProfile.findUnique({
+      where: { email: data.customerEmail },
+      select: {
+        id: true,
+        jacketSize: true,
+        trouserSize: true,
+        fitPreference: true,
+        technicalSpecs: true,
+        updatedAt: true,
+      },
+    });
+
+    const fitIntakeStatus = resolveFitIntakeStatus(fitProfile);
+    const fitRefreshUrl = buildFitRefreshUrl(data.customerEmail);
+
+    if (requiresFitIntake(data.serviceType)) {
+      if (fitIntakeStatus === 'missing') {
+        return {
+          success: false,
+          message:
+            'Fit profile is required for this appointment type. Complete FitGate/Smart Fit first, then rebook.',
+          requiresFitRefresh: true,
+          fitIntakeStatus,
+          fitRefreshUrl,
+        };
+      }
+    }
+
     const parsedTime = parseTimeSlot(data.timeSlot);
     if (!parsedTime) {
       return {
@@ -185,6 +281,11 @@ export const BookingService = {
       };
     }
 
+    const bookingStatus =
+      requiresFitIntake(data.serviceType) && fitIntakeStatus === 'stale'
+        ? 'pending_fit_refresh'
+        : 'confirmed';
+
     const booking = await prisma.booking.create({
       data: {
         email: data.customerEmail,
@@ -196,7 +297,10 @@ export const BookingService = {
           lng: data.lng,
         },
         notes: data.notes || null,
-        status: 'confirmed',
+        status: bookingStatus,
+        fitProfileId: fitProfile?.id,
+        suggestedJacket: fitProfile?.jacketSize || null,
+        suggestedTrouser: fitProfile?.trouserSize || null,
       },
       select: { id: true },
     });
@@ -204,7 +308,14 @@ export const BookingService = {
     return {
       success: true,
       bookingId: booking.id,
-      message: 'Booking recorded in Atelier system.',
+      message:
+        bookingStatus === 'pending_fit_refresh'
+          ? 'Booking reserved. Please refresh your fit profile to finalize confirmation.'
+          : 'Booking recorded in Atelier system.',
+      bookingStatus,
+      requiresFitRefresh: bookingStatus === 'pending_fit_refresh',
+      fitIntakeStatus,
+      fitRefreshUrl: bookingStatus === 'pending_fit_refresh' ? fitRefreshUrl : undefined,
     };
   },
 

@@ -17,6 +17,26 @@ function getMinBookingDateByLeadTime(leadTimeHours: number): string {
   return toYyyyMmDdLocal(date);
 }
 
+function formatValidationErrorDetails(details: unknown): string | null {
+  if (!details || typeof details !== 'object') return null;
+  const fieldErrors = (details as { fieldErrors?: Record<string, string[] | undefined> }).fieldErrors;
+  if (!fieldErrors || typeof fieldErrors !== 'object') return null;
+
+  const messages: string[] = [];
+
+  for (const [field, issues] of Object.entries(fieldErrors)) {
+    if (!Array.isArray(issues)) continue;
+    for (const issue of issues) {
+      if (typeof issue === 'string' && issue.trim().length > 0) {
+        messages.push(`${field}: ${issue}`);
+      }
+    }
+  }
+
+  if (messages.length === 0) return null;
+  return messages.join(' | ');
+}
+
 function BookFitContent() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState(searchParams.get('email') || '');
@@ -106,6 +126,11 @@ function BookFitContent() {
     [selectedServiceType, serviceType],
   );
 
+  const requiresFitIntake = useMemo(
+    () => serviceType === 'home_office' || serviceType === 'tailor_fitting',
+    [serviceType],
+  );
+
   async function submitBooking() {
     if (!email || !date || !timeSlot) {
       setError('Please complete email, date, and time slot.');
@@ -136,7 +161,14 @@ function BookFitContent() {
 
       const data = await response.json();
       if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Unable to confirm booking');
+        const detailsMessage = formatValidationErrorDetails(data?.details);
+        throw new Error(detailsMessage || data.message || 'Unable to confirm booking');
+      }
+
+      if (data.requiresFitRefresh) {
+        const fallbackRefreshUrl = `/configure-fit?email=${encodeURIComponent(email)}&source=fit-booking-refresh`;
+        window.location.href = typeof data.fitRefreshUrl === 'string' ? data.fitRefreshUrl : fallbackRefreshUrl;
+        return;
       }
 
       const params = new URLSearchParams({
@@ -251,6 +283,19 @@ function BookFitContent() {
               className="w-full min-h-[80px] rounded-md border border-zinc-200 px-4 py-3 text-sm outline-none focus:border-zinc-400"
             />
           </div>
+
+          {requiresFitIntake && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Home / Office Visit and Tailor Fitting require completed FitGate + Smart Fit profile data.
+              <a
+                href={`/configure-fit${email ? `?email=${encodeURIComponent(email)}` : ''}`}
+                className="ml-1 font-semibold underline"
+              >
+                Complete fit profile first
+              </a>
+              .
+            </div>
+          )}
 
           {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 

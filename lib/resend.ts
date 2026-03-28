@@ -61,6 +61,17 @@ type BookingConfirmationEmailInput = {
   outlookCalendarUrl: string;
 };
 
+type BookingLifecycleEmailInput = {
+  to: string;
+  appointmentLabel: string;
+  appointmentMode: string;
+  location: string;
+};
+
+type FitRefreshRequiredEmailInput = BookingLifecycleEmailInput & {
+  fitRefreshUrl: string;
+};
+
 export async function sendBookingConfirmationEmail(input: BookingConfirmationEmailInput) {
   const from = process.env.RESEND_FROM;
 
@@ -84,6 +95,91 @@ export async function sendBookingConfirmationEmail(input: BookingConfirmationEma
       to: input.to,
       subject: `Appointment Confirmed — Germaine Joseph`,
       html,
+    });
+
+    return { ok: true, id: result.data?.id };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function sendBookingRescheduledEmail(input: BookingLifecycleEmailInput) {
+  const from = process.env.RESEND_FROM;
+
+  if (!process.env.RESEND_API_KEY || !from) {
+    return { ok: false, error: "Missing RESEND_API_KEY or RESEND_FROM" };
+  }
+
+  try {
+    const result = await resend.emails.send({
+      from,
+      to: input.to,
+      subject: 'Appointment Rescheduled - Germaine Joseph',
+      html: `
+        <h2>Appointment Rescheduled</h2>
+        <p>Your fitting appointment has been successfully rescheduled.</p>
+        <p><strong>Date & Time:</strong> ${input.appointmentLabel}</p>
+        <p><strong>Mode:</strong> ${input.appointmentMode}</p>
+        <p><strong>Location:</strong> ${input.location}</p>
+        <p>If this was not requested by you, please reply to this email immediately.</p>
+      `,
+    });
+
+    return { ok: true, id: result.data?.id };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function sendBookingCancelledEmail(input: BookingLifecycleEmailInput) {
+  const from = process.env.RESEND_FROM;
+
+  if (!process.env.RESEND_API_KEY || !from) {
+    return { ok: false, error: "Missing RESEND_API_KEY or RESEND_FROM" };
+  }
+
+  try {
+    const result = await resend.emails.send({
+      from,
+      to: input.to,
+      subject: 'Appointment Cancelled - Germaine Joseph',
+      html: `
+        <h2>Appointment Cancelled</h2>
+        <p>Your fitting appointment has been cancelled.</p>
+        <p><strong>Previous Date & Time:</strong> ${input.appointmentLabel}</p>
+        <p><strong>Mode:</strong> ${input.appointmentMode}</p>
+        <p><strong>Location:</strong> ${input.location}</p>
+        <p>If you would like to rebook, please return to the booking page.</p>
+      `,
+    });
+
+    return { ok: true, id: result.data?.id };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function sendFitRefreshRequiredEmail(input: FitRefreshRequiredEmailInput) {
+  const from = process.env.RESEND_FROM;
+
+  if (!process.env.RESEND_API_KEY || !from) {
+    return { ok: false, error: "Missing RESEND_API_KEY or RESEND_FROM" };
+  }
+
+  try {
+    const result = await resend.emails.send({
+      from,
+      to: input.to,
+      subject: 'Action Needed: Refresh Your Fit Profile - Germaine Joseph',
+      html: `
+        <h2>Fit Profile Refresh Needed</h2>
+        <p>We have reserved your appointment slot, but your fit profile needs a quick refresh before final confirmation.</p>
+        <p><strong>Reserved Slot:</strong> ${input.appointmentLabel}</p>
+        <p><strong>Mode:</strong> ${input.appointmentMode}</p>
+        <p><strong>Location:</strong> ${input.location}</p>
+        <p><a href="${input.fitRefreshUrl}">Complete Fit Refresh</a></p>
+        <p>Once completed, our system will finalize your booking details.</p>
+      `,
     });
 
     return { ok: true, id: result.data?.id };

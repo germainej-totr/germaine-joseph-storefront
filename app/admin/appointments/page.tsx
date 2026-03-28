@@ -36,19 +36,66 @@ function toDateInputValue(value?: string): string {
 export default function AppointmentsPage() {
   const [bookings, setBookings] = useState<BookingViewModel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [busyBookingId, setBusyBookingId] = useState<string | null>(null);
   const [rescheduleState, setRescheduleState] = useState<RescheduleBookingModalState | null>(null);
   const { serviceTypes, serviceTypeMap } = useBookingServiceTypes();
 
   useEffect(() => {
-    fetch('/api/admin/get-bookings')
-      .then((res) => res.json())
-      .then((data) => {
-        setBookings(Array.isArray(data) ? (data as BookingViewModel[]) : []);
+    let cancelled = false;
+
+    async function loadBookings() {
+      setLoading(true);
+      setLoadError(null);
+
+      const maxAttempts = 3;
+      let lastError = 'Failed to load bookings';
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+          const res = await fetch('/api/admin/get-bookings', { cache: 'no-store' });
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(
+              (data && typeof data === 'object' && 'error' in data && typeof data.error === 'string'
+                ? data.error
+                : null) ||
+                (data && typeof data === 'object' && 'message' in data && typeof data.message === 'string'
+                  ? data.message
+                  : null) ||
+                'Failed to load bookings',
+            );
+          }
+
+          if (!cancelled) {
+            setBookings(Array.isArray(data) ? (data as BookingViewModel[]) : []);
+            setLoadError(null);
+            setLoading(false);
+          }
+          return;
+        } catch (error) {
+          lastError = error instanceof Error ? error.message : 'Failed to load bookings';
+          if (attempt < maxAttempts) {
+            await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+            continue;
+          }
+        }
+      }
+
+      if (!cancelled) {
+        setBookings([]);
+        setLoadError(lastError);
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      }
+    }
+
+    void loadBookings();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function cancelBooking(bookingId: string) {
@@ -112,6 +159,12 @@ export default function AppointmentsPage() {
   return (
     <div className="w-full max-w-6xl mx-auto p-8 font-sans text-gray-900">
       <h1 className="text-3xl font-light tracking-tighter mb-10 uppercase border-b pb-4">Maison Intake</h1>
+
+      {loadError && (
+        <div className="mb-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          Unable to load latest bookings: {loadError}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6">
         {bookings.map((booking) => {
