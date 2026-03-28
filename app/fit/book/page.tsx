@@ -4,9 +4,7 @@ import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import type { ServiceTypeId } from '@/types/booking';
 import { useBookingServiceTypes } from '@/hooks/useBookingServiceTypes';
-
-const STUDIO_LOCATION =
-  process.env.NEXT_PUBLIC_MAISON_STUDIO_ADDRESS || 'Maison Showroom (address shared on confirmation)';
+import { useBookingLocations } from '@/hooks/useBookingLocations';
 
 function parseServiceTypeParam(value: string | null): ServiceTypeId | null {
   if (
@@ -63,12 +61,14 @@ function BookFitContent() {
   const [date, setDate] = useState(searchParams.get('date') || '');
   const [timeSlot, setTimeSlot] = useState(searchParams.get('timeSlot') || '');
   const [notes, setNotes] = useState('');
+  const [studioLocationId, setStudioLocationId] = useState(searchParams.get('locationId') || '');
 
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const { serviceTypes, serviceTypeMap, defaultServiceType } = useBookingServiceTypes();
+  const { enabledLocations, locationMap, defaultLocationId } = useBookingLocations();
 
   const useCase = searchParams.get('useCase') || 'Business';
 
@@ -81,6 +81,16 @@ function BookFitContent() {
       return (defaultServiceType as ServiceTypeId) || 'showroom';
     });
   }, [serviceTypeMap, defaultServiceType]);
+
+  useEffect(() => {
+    if (studioLocationId && locationMap[studioLocationId]?.enabled) {
+      return;
+    }
+
+    if (defaultLocationId) {
+      setStudioLocationId(defaultLocationId);
+    }
+  }, [defaultLocationId, locationMap, studioLocationId]);
 
   useEffect(() => {
     if (!date) {
@@ -149,6 +159,11 @@ function BookFitContent() {
     [serviceType],
   );
 
+  const selectedStudioLocation = useMemo(
+    () => locationMap[studioLocationId] || enabledLocations[0],
+    [enabledLocations, locationMap, studioLocationId],
+  );
+
   const fitRefreshUrl = useMemo(() => {
     const query = new URLSearchParams({
       email,
@@ -158,10 +173,11 @@ function BookFitContent() {
 
     if (date) query.set('date', date);
     if (timeSlot) query.set('timeSlot', timeSlot);
+    if (studioLocationId) query.set('locationId', studioLocationId);
     if (location.trim()) query.set('location', location.trim());
 
     return `/configure-fit?${query.toString()}`;
-  }, [date, email, location, serviceType, timeSlot]);
+  }, [date, email, location, serviceType, studioLocationId, timeSlot]);
 
   async function submitBooking() {
     if (!email || !date || !timeSlot) {
@@ -183,7 +199,10 @@ function BookFitContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           serviceType,
-          location: location.trim() || STUDIO_LOCATION,
+          location:
+            requiresAddress
+              ? location.trim()
+              : (selectedStudioLocation?.address || 'Maison Showroom (address shared on confirmation)'),
           date,
           timeSlot,
           customerEmail: email,
@@ -252,6 +271,26 @@ function BookFitContent() {
               ))}
             </select>
           </div>
+
+          {!requiresAddress && (
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Studio Location</label>
+              <select
+                value={studioLocationId}
+                onChange={(e) => setStudioLocationId(e.target.value)}
+                className="w-full rounded-md border border-zinc-200 px-4 py-3 text-sm outline-none focus:border-zinc-400"
+              >
+                {enabledLocations.map((locationOption) => (
+                  <option key={locationOption.id} value={locationOption.id}>
+                    {locationOption.label} - {locationOption.city}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-zinc-500">
+                {selectedStudioLocation?.address || 'Studio address will be shared on confirmation.'}
+              </p>
+            </div>
+          )}
 
           {requiresAddress && (
             <div className="space-y-1">

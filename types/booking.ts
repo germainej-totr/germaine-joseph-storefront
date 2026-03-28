@@ -42,6 +42,17 @@ export interface ServiceTypeOption {
   zones?: { radius_km?: number; flat_fee?: number };
 }
 
+export interface BookingLocationOption {
+  id: string;
+  label: string;
+  city: string;
+  countryCode: string;
+  timeZone: string;
+  address?: string;
+  enabled: boolean;
+  supportsShowroom: boolean;
+}
+
 export interface BookingCreate {
   serviceType: ServiceTypeId;
   startAt: string;

@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { Home, Briefcase, MapPin, Store } from 'lucide-react';
+import { FALLBACK_BOOKING_LOCATIONS } from '@/lib/booking/locationCatalogClient';
 
 interface FitGateModalProps {
   isOpen: boolean;
@@ -27,7 +28,8 @@ const initialFormData = {
 type FormDataType = typeof initialFormData;
 
 const STUDIO_LOCATION =
-  process.env.NEXT_PUBLIC_MAISON_STUDIO_ADDRESS || 'Maison Showroom (address shared on confirmation)';
+  FALLBACK_BOOKING_LOCATIONS.find((location) => location.enabled && location.supportsShowroom)?.address ||
+  'Maison Showroom (address shared on confirmation)';
 
 function mapAppointmentModeToServiceType(mode: string): 'showroom' | 'home_office' {
   return mode === 'Studio' ? 'showroom' : 'home_office';

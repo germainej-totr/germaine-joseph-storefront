@@ -55,5 +55,26 @@ export function resolvePostFitDestination(
   const useCase = searchParams.get('primaryUseCase');
   if (useCase) query.set('useCase', useCase);
 
+  const source = searchParams.get('source');
+  if (source) query.set('source', source);
+
+  const serviceType = searchParams.get('serviceType');
+  if (serviceType) query.set('serviceType', serviceType);
+
+  const date = searchParams.get('date');
+  if (date) query.set('date', date);
+
+  const timeSlot = searchParams.get('timeSlot');
+  if (timeSlot) query.set('timeSlot', timeSlot);
+
+  const location = searchParams.get('location');
+  if (location) query.set('location', location);
+
+  const locationId = searchParams.get('locationId');
+  if (locationId) query.set('locationId', locationId);
+
+  const pendingBookingId = searchParams.get('pendingBookingId');
+  if (pendingBookingId) query.set('pendingBookingId', pendingBookingId);
+
   return `${defaultPath}?${query.toString()}`;
 }

@@ -31,6 +31,7 @@ type FitRefreshContext = {
   date?: string;
   timeSlot?: string;
   location?: string;
+  locationId?: string;
   pendingBookingId?: string;
 };
 
@@ -44,6 +45,7 @@ function buildFitRefreshUrl(email: string, context?: FitRefreshContext): string 
   if (context?.date) query.set('date', context.date);
   if (context?.timeSlot) query.set('timeSlot', context.timeSlot);
   if (context?.location?.trim()) query.set('location', context.location.trim());
+  if (context?.locationId?.trim()) query.set('locationId', context.locationId.trim());
   if (context?.pendingBookingId) query.set('pendingBookingId', context.pendingBookingId);
 
   return `/configure-fit?${query.toString()}`;

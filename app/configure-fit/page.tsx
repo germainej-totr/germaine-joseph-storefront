@@ -5,6 +5,7 @@ import { Calendar, Loader2, Ruler, MapPin, Users, Heart, Lock, Unlock, Clock } f
 import type { ServiceTypeId } from '@/types/booking';
 import { sendOffsiteAlert } from '@/app/actions/sendOffsiteAlert';
 import { useBookingServiceTypes } from '@/hooks/useBookingServiceTypes';
+import { useBookingLocations } from '@/hooks/useBookingLocations';
 import { useFitHandoff } from '@/lib/trouser/useFitHandoff';
 import { buildCanonicalTrouserMtmPayload } from '@/lib/trouser/TrouserMtmPayload';
 import { addTrouserToCart } from '@/lib/shopify/ShopifyTrouserAddToCartBridge';
@@ -164,7 +165,7 @@ const countProductionDaysBetween = (startExclusive: Date, endExclusive: Date) =>
 const formatYmd = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-const STUDIO_LOCATION =
+const STUDIO_LOCATION_FALLBACK =
   process.env.NEXT_PUBLIC_MAISON_STUDIO_ADDRESS || 'Maison Showroom (address shared on confirmation)';
 
 function mapAppointmentModeToServiceType(mode: string): ServiceTypeId {
@@ -204,6 +205,7 @@ function getMinBookingDateByLeadTime(leadTimeHours: number): string {
 function FitConfiguratorContent() {
   const searchParams = useSearchParams();
   const { serviceTypeMap } = useBookingServiceTypes();
+  const { enabledLocations, locationMap, defaultLocationId } = useBookingLocations();
   const {
     snapshot: trouserDesignSnapshot,
     source: trouserDesignSource,
@@ -217,6 +219,7 @@ function FitConfiguratorContent() {
   const [selectedTime, setSelectedTime] = useState('');
   const [onLocationAddress, setOnLocationAddress] = useState('');
   const [bookingServiceType, setBookingServiceType] = useState<ServiceTypeId>('showroom');
+  const [studioLocationId, setStudioLocationId] = useState('');
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [weddingDate, setWeddingDate] = useState('');
@@ -259,6 +262,11 @@ function FitConfiguratorContent() {
   const minBookingDate = useMemo(
     () => getMinBookingDateByLeadTime(serviceTypeMap[bookingServiceType]?.leadTimeHours ?? 48),
     [bookingServiceType, serviceTypeMap],
+  );
+
+  const selectedStudioLocation = useMemo(
+    () => locationMap[studioLocationId] || enabledLocations[0],
+    [enabledLocations, locationMap, studioLocationId],
   );
 
   const weddingProductionValidation = useMemo(() => {
@@ -331,6 +339,7 @@ function FitConfiguratorContent() {
     const resolvedServiceType = serviceTypeFromQuery || mapAppointmentModeToServiceType(mode || 'Studio');
     const modeFromServiceType = mapServiceTypeToAppointmentMode(resolvedServiceType);
     const locationFromQuery = searchParams.get('location') || '';
+    const locationIdFromQuery = searchParams.get('locationId') || '';
 
     trackFitFlowEvent({
       eventName: 'gjm_fit_flow_start',
@@ -355,6 +364,7 @@ function FitConfiguratorContent() {
     });
 
     setBookingServiceType(resolvedServiceType);
+    setStudioLocationId(locationIdFromQuery);
     setSelectedDate(searchParams.get('date') || '');
     setSelectedTime(searchParams.get('timeSlot') || '');
     setOnLocationAddress(locationFromQuery);
@@ -373,6 +383,16 @@ function FitConfiguratorContent() {
       seatShape: searchParams.get('seatShape') || prev.seatShape,
     }));
   }, [searchParams]);
+
+  useEffect(() => {
+    if (studioLocationId && locationMap[studioLocationId]?.enabled) {
+      return;
+    }
+
+    if (defaultLocationId) {
+      setStudioLocationId(defaultLocationId);
+    }
+  }, [defaultLocationId, locationMap, studioLocationId]);
 
   useEffect(() => {
     if (!selectedDate) {
@@ -677,7 +697,7 @@ function FitConfiguratorContent() {
       if (shouldAutoCreateBooking && !promotedBookingId) {
         const resolvedLocation = isOffsite
           ? onLocationAddress.trim()
-          : (searchParams.get('location') || STUDIO_LOCATION);
+          : (searchParams.get('location') || selectedStudioLocation?.address || STUDIO_LOCATION_FALLBACK);
 
         const bookingResponse = await fetch('/api/bookings/confirm', {
           method: 'POST',
@@ -1058,13 +1078,28 @@ function FitConfiguratorContent() {
                     />
                   </div>
                 ) : (
-                  <div className="p-6 bg-zinc-50 rounded-xl border border-zinc-100 flex items-start gap-4">
-                    <div className="p-2 bg-black text-white rounded-lg">
-                      <MapPin size={16} />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase text-zinc-500 tracking-widest">Maison Location</p>
-                      <p className="text-sm font-medium mt-1">{searchParams.get('location') || STUDIO_LOCATION}</p>
+                  <div className="space-y-3 p-6 bg-zinc-50 rounded-xl border border-zinc-100">
+                    <label className="text-[10px] font-bold uppercase text-zinc-500 tracking-widest">Studio Location</label>
+                    <select
+                      value={studioLocationId}
+                      onChange={(e) => setStudioLocationId(e.target.value)}
+                      className="w-full p-3 border rounded-md text-sm bg-white"
+                    >
+                      {enabledLocations.map((locationOption) => (
+                        <option key={locationOption.id} value={locationOption.id}>
+                          {locationOption.label} - {locationOption.city}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="flex items-start gap-4">
+                      <div className="p-2 bg-black text-white rounded-lg">
+                        <MapPin size={16} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase text-zinc-500 tracking-widest">Maison Location</p>
+                        <p className="text-sm font-medium mt-1">{selectedStudioLocation?.address || STUDIO_LOCATION_FALLBACK}</p>
+                      </div>
                     </div>
                   </div>
                 )}
