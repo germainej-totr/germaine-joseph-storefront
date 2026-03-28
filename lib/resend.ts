@@ -66,6 +66,9 @@ type BookingLifecycleEmailInput = {
   appointmentLabel: string;
   appointmentMode: string;
   location: string;
+  googleCalendarUrl?: string;
+  outlookCalendarUrl?: string;
+  icsDownloadUrl?: string;
 };
 
 type FitRefreshRequiredEmailInput = BookingLifecycleEmailInput & {
@@ -121,6 +124,9 @@ export async function sendBookingRescheduledEmail(input: BookingLifecycleEmailIn
         <p><strong>Date & Time:</strong> ${input.appointmentLabel}</p>
         <p><strong>Mode:</strong> ${input.appointmentMode}</p>
         <p><strong>Location:</strong> ${input.location}</p>
+        ${input.googleCalendarUrl ? `<p><a href="${input.googleCalendarUrl}">Add to Google Calendar</a></p>` : ''}
+        ${input.outlookCalendarUrl ? `<p><a href="${input.outlookCalendarUrl}">Add to Outlook Calendar</a></p>` : ''}
+        ${input.icsDownloadUrl ? `<p><a href="${input.icsDownloadUrl}">Download ICS Invite</a></p>` : ''}
         <p>If this was not requested by you, please reply to this email immediately.</p>
       `,
     });

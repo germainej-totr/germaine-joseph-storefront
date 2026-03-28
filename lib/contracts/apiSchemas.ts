@@ -77,6 +77,22 @@ export const BOOKING_UPDATE_REQUEST_SCHEMA = z
     }
   });
 
+export const RESCHEDULE_AVAILABILITY_QUERY_SCHEMA = z.object({
+  bookingId: z.string().min(1, 'bookingId is required'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be in YYYY-MM-DD format'),
+  serviceType: SERVICE_TYPE_ID_SCHEMA.optional(),
+});
+
+export const RESCHEDULE_BOOKING_REQUEST_SCHEMA = z.object({
+  bookingId: z.string().min(1, 'bookingId is required'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be in YYYY-MM-DD format'),
+  timeSlot: z.string().min(1, 'timeSlot is required'),
+  serviceType: SERVICE_TYPE_ID_SCHEMA.optional(),
+  location: z.string().optional(),
+  lat: z.number().finite().optional(),
+  lng: z.number().finite().optional(),
+});
+
 export const CART_ADD_REQUEST_SCHEMA = z.object({
   productId: z.string().optional(),
   variantId: z.string().min(1, 'variantId is required'),

@@ -8,6 +8,8 @@ import {
   BOOKING_UPDATE_REQUEST_SCHEMA,
   CART_ADD_REQUEST_SCHEMA,
   CONFIRM_REQUEST_SCHEMA,
+  RESCHEDULE_AVAILABILITY_QUERY_SCHEMA,
+  RESCHEDULE_BOOKING_REQUEST_SCHEMA,
 } from '../lib/contracts/apiSchemas.ts';
 import { FALLBACK_SERVICE_TYPES } from '../lib/booking/serviceTypeCatalogClient.ts';
 
@@ -68,6 +70,39 @@ assertInvalid(
   BOOKING_UPDATE_REQUEST_SCHEMA.safeParse({
     action: 'reschedule',
     serviceType: 'showroom',
+  }),
+);
+
+assertValid(
+  'reschedule availability query valid payload',
+  RESCHEDULE_AVAILABILITY_QUERY_SCHEMA.safeParse({
+    bookingId: 'booking_123',
+    date: '2026-04-12',
+    serviceType: 'showroom',
+  }),
+);
+assertInvalid(
+  'reschedule availability query invalid payload',
+  RESCHEDULE_AVAILABILITY_QUERY_SCHEMA.safeParse({
+    bookingId: '',
+    date: '12-04-2026',
+  }),
+);
+
+assertValid(
+  'reschedule booking request valid payload',
+  RESCHEDULE_BOOKING_REQUEST_SCHEMA.safeParse({
+    bookingId: 'booking_123',
+    date: '2026-04-12',
+    timeSlot: '10:00 AM',
+    serviceType: 'showroom',
+  }),
+);
+assertInvalid(
+  'reschedule booking request missing fields payload',
+  RESCHEDULE_BOOKING_REQUEST_SCHEMA.safeParse({
+    bookingId: 'booking_123',
+    date: '2026-04-12',
   }),
 );
 

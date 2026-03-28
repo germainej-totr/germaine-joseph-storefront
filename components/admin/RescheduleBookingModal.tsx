@@ -80,7 +80,9 @@ export default function RescheduleBookingModal({
   onRescheduled,
 }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
   const [form, setForm] = useState<FormState | null>(null);
+  const [availabilitySlots, setAvailabilitySlots] = useState<string[]>([]);
 
   const catalog = serviceTypes.length ? serviceTypes : FALLBACK_SERVICE_TYPES;
   const serviceTypeMap = useMemo(() => toServiceTypeMap(catalog), [catalog]);
@@ -92,6 +94,8 @@ export default function RescheduleBookingModal({
     if (!isOpen || !state) {
       setForm(null);
       setIsSubmitting(false);
+      setIsLoadingAvailability(false);
+      setAvailabilitySlots([]);
       return;
     }
 
@@ -109,6 +113,84 @@ export default function RescheduleBookingModal({
       error: '',
     });
   }, [isOpen, state, slotMap, defaultServiceType, serviceTypeMap]);
+
+  useEffect(() => {
+    if (!isOpen || !state || !form?.date || !form.serviceType) {
+      return;
+    }
+
+    const currentState = state;
+    const currentForm = form;
+    let cancelled = false;
+
+    async function loadAvailability() {
+      setIsLoadingAvailability(true);
+
+      try {
+        const query = new URLSearchParams({
+          bookingId: currentState.bookingId,
+          date: currentForm.date,
+          serviceType: currentForm.serviceType,
+        });
+
+        const response = await fetch(`/api/bookings/reschedule/availability?${query.toString()}`, {
+          cache: 'no-store',
+        });
+        const payload = (await response.json()) as {
+          success?: boolean;
+          message?: string;
+          availableSlots?: string[];
+        };
+
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.message || 'Failed to load availability');
+        }
+
+        if (cancelled) return;
+
+        const slots = Array.isArray(payload.availableSlots) ? payload.availableSlots : [];
+        setAvailabilitySlots(slots);
+
+        setForm((previous) => {
+          if (!previous) return previous;
+          const fallbackSlots = slotMap[previous.serviceType] || slotMap[defaultServiceType] || [];
+          const nextSlots = slots.length ? slots : fallbackSlots;
+          const nextTimeSlot = nextSlots.includes(previous.timeSlot)
+            ? previous.timeSlot
+            : nextSlots[0] || '';
+
+          return {
+            ...previous,
+            timeSlot: nextTimeSlot,
+            error: previous.error === 'No available slots for selected date.' ? '' : previous.error,
+          };
+        });
+      } catch (error) {
+        if (cancelled) return;
+
+        const message = error instanceof Error ? error.message : 'Failed to load availability';
+        setAvailabilitySlots([]);
+        setForm((previous) =>
+          previous
+            ? {
+                ...previous,
+                error: message,
+              }
+            : previous,
+        );
+      } finally {
+        if (!cancelled) {
+          setIsLoadingAvailability(false);
+        }
+      }
+    }
+
+    void loadAvailability();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, state, form?.date, form?.serviceType, slotMap, defaultServiceType]);
 
   useEffect(() => {
     if (!isOpen || !state) return;
@@ -134,7 +216,8 @@ export default function RescheduleBookingModal({
   const selectedServiceType = form.serviceType || defaultServiceType;
   const selectedServiceConfig = serviceTypeMap[selectedServiceType];
   const minLeadDate = minDateForLeadTime(selectedServiceConfig?.leadTimeHours ?? 24);
-  const timeSlotOptions = slotMap[selectedServiceType] || slotMap[defaultServiceType] || [];
+  const fallbackTimeSlotOptions = slotMap[selectedServiceType] || slotMap[defaultServiceType] || [];
+  const timeSlotOptions = availabilitySlots.length ? availabilitySlots : fallbackTimeSlotOptions;
 
   async function submitReschedule(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
@@ -176,28 +259,44 @@ export default function RescheduleBookingModal({
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(`/api/bookings/${currentState.bookingId}`, {
-        method: 'PATCH',
+      const response = await fetch('/api/bookings/reschedule', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'reschedule',
+          bookingId: currentState.bookingId,
           date: currentForm.date,
           timeSlot: currentForm.timeSlot,
           serviceType: currentForm.serviceType,
         }),
       });
 
-      const data = (await response.json()) as { success?: boolean; message?: string };
+      const data = (await response.json()) as {
+        success?: boolean;
+        message?: string;
+        current?: {
+          date?: string;
+          timeSlot?: string;
+          serviceType?: string;
+          startAtIso?: string;
+        };
+      };
       if (!response.ok || !data.success) {
         throw new Error(data.message || 'Failed to reschedule booking');
       }
 
+      const nextCurrent = data.current;
+
       onRescheduled({
         bookingId: currentState.bookingId,
-        date: currentForm.date,
-        timeSlot: currentForm.timeSlot,
-        serviceType: currentForm.serviceType,
-        startAtIso: toIsoFromDateAndTimeSlot(currentForm.date, currentForm.timeSlot),
+        date: nextCurrent?.date || currentForm.date,
+        timeSlot: nextCurrent?.timeSlot || currentForm.timeSlot,
+        serviceType: nextCurrent?.serviceType || currentForm.serviceType,
+        startAtIso:
+          nextCurrent?.startAtIso ||
+          toIsoFromDateAndTimeSlot(
+            nextCurrent?.date || currentForm.date,
+            nextCurrent?.timeSlot || currentForm.timeSlot,
+          ),
       });
       onClose();
     } catch (error) {
@@ -250,6 +349,7 @@ export default function RescheduleBookingModal({
             </label>
             <select
               value={form.timeSlot}
+              disabled={isLoadingAvailability}
               onChange={(e) =>
                 setForm((previous) =>
                   previous ? { ...previous, timeSlot: e.target.value, error: '' } : previous,
@@ -257,6 +357,10 @@ export default function RescheduleBookingModal({
               }
               className="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm"
             >
+              {isLoadingAvailability && <option value="">Loading slots...</option>}
+              {!isLoadingAvailability && timeSlotOptions.length === 0 && (
+                <option value="">No available slots</option>
+              )}
               {timeSlotOptions.map((slot) => (
                 <option key={slot} value={slot}>
                   {slot}

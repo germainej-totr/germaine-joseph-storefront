@@ -208,6 +208,24 @@ export const BookingService = {
     return getAvailabilitySlots(date, serviceType);
   },
 
+  async checkAvailabilityForReschedule(
+    date: string,
+    serviceType: ServiceTypeId,
+    bookingId: string,
+  ) {
+    if (!date) return { isAvailable: false, message: 'Date is required', slots: [] as string[] };
+
+    if (!bookingId) {
+      return { isAvailable: false, message: 'Booking id is required', slots: [] as string[] };
+    }
+
+    if (!isServiceType(serviceType)) {
+      return { isAvailable: false, message: 'Invalid service type', slots: [] as string[] };
+    }
+
+    return getAvailabilitySlots(date, serviceType, bookingId);
+  },
+
   /**
    * Saves the booking and the Fit Profile snapshot
    */
