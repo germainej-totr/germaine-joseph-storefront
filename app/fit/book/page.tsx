@@ -5,6 +5,22 @@ import { useSearchParams } from 'next/navigation';
 import type { ServiceTypeId } from '@/types/booking';
 import { useBookingServiceTypes } from '@/hooks/useBookingServiceTypes';
 
+const STUDIO_LOCATION =
+  process.env.NEXT_PUBLIC_MAISON_STUDIO_ADDRESS || 'Maison Showroom (address shared on confirmation)';
+
+function parseServiceTypeParam(value: string | null): ServiceTypeId | null {
+  if (
+    value === 'showroom' ||
+    value === 'home_office' ||
+    value === 'tailor_fitting' ||
+    value === 'virtual' ||
+    value === 'video_consult'
+  ) {
+    return value;
+  }
+  return null;
+}
+
 function toYyyyMmDdLocal(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -40,10 +56,12 @@ function formatValidationErrorDetails(details: unknown): string | null {
 function BookFitContent() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState(searchParams.get('email') || '');
-  const [serviceType, setServiceType] = useState<ServiceTypeId>('showroom');
-  const [location, setLocation] = useState('');
-  const [date, setDate] = useState('');
-  const [timeSlot, setTimeSlot] = useState('');
+  const [serviceType, setServiceType] = useState<ServiceTypeId>(
+    parseServiceTypeParam(searchParams.get('serviceType')) || 'showroom',
+  );
+  const [location, setLocation] = useState(searchParams.get('location') || '');
+  const [date, setDate] = useState(searchParams.get('date') || '');
+  const [timeSlot, setTimeSlot] = useState(searchParams.get('timeSlot') || '');
   const [notes, setNotes] = useState('');
 
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
@@ -131,6 +149,20 @@ function BookFitContent() {
     [serviceType],
   );
 
+  const fitRefreshUrl = useMemo(() => {
+    const query = new URLSearchParams({
+      email,
+      source: 'fit-booking-refresh',
+      serviceType,
+    });
+
+    if (date) query.set('date', date);
+    if (timeSlot) query.set('timeSlot', timeSlot);
+    if (location.trim()) query.set('location', location.trim());
+
+    return `/configure-fit?${query.toString()}`;
+  }, [date, email, location, serviceType, timeSlot]);
+
   async function submitBooking() {
     if (!email || !date || !timeSlot) {
       setError('Please complete email, date, and time slot.');
@@ -151,7 +183,7 @@ function BookFitContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           serviceType,
-          location: location.trim() || 'Maison Showroom',
+          location: location.trim() || STUDIO_LOCATION,
           date,
           timeSlot,
           customerEmail: email,
@@ -166,7 +198,7 @@ function BookFitContent() {
       }
 
       if (data.requiresFitRefresh) {
-        const fallbackRefreshUrl = `/configure-fit?email=${encodeURIComponent(email)}&source=fit-booking-refresh`;
+        const fallbackRefreshUrl = fitRefreshUrl;
         window.location.href = typeof data.fitRefreshUrl === 'string' ? data.fitRefreshUrl : fallbackRefreshUrl;
         return;
       }
@@ -288,7 +320,7 @@ function BookFitContent() {
             <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               Home / Office Visit and Tailor Fitting require completed FitGate + Smart Fit profile data.
               <a
-                href={`/configure-fit${email ? `?email=${encodeURIComponent(email)}` : ''}`}
+                href={fitRefreshUrl}
                 className="ml-1 font-semibold underline"
               >
                 Complete fit profile first

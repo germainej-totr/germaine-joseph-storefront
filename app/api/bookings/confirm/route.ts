@@ -92,7 +92,9 @@ export async function POST(request: Request) {
         appointmentLabel: formatAppointmentLabel(body.date, body.timeSlot),
         appointmentMode: policy?.label ?? body.serviceType,
         location: body.location || 'Maison Showroom',
-        fitRefreshUrl: result.fitRefreshUrl || `/configure-fit?email=${encodeURIComponent(body.customerEmail)}`,
+        fitRefreshUrl:
+          result.fitRefreshUrl ||
+          `/configure-fit?email=${encodeURIComponent(body.customerEmail)}&source=fit-booking-refresh&serviceType=${encodeURIComponent(body.serviceType)}&date=${encodeURIComponent(body.date)}&timeSlot=${encodeURIComponent(body.timeSlot)}${body.location ? `&location=${encodeURIComponent(body.location)}` : ''}`,
       }).catch((err) => console.error('Fit refresh email send failed:', err));
     }
 

@@ -26,8 +26,27 @@ function getFitFreshnessWindowDays(): number {
   return Math.floor(raw);
 }
 
-function buildFitRefreshUrl(email: string): string {
-  return `/configure-fit?email=${encodeURIComponent(email)}&source=fit-booking-refresh`;
+type FitRefreshContext = {
+  serviceType?: ServiceTypeId;
+  date?: string;
+  timeSlot?: string;
+  location?: string;
+  pendingBookingId?: string;
+};
+
+function buildFitRefreshUrl(email: string, context?: FitRefreshContext): string {
+  const query = new URLSearchParams({
+    email,
+    source: 'fit-booking-refresh',
+  });
+
+  if (context?.serviceType) query.set('serviceType', context.serviceType);
+  if (context?.date) query.set('date', context.date);
+  if (context?.timeSlot) query.set('timeSlot', context.timeSlot);
+  if (context?.location?.trim()) query.set('location', context.location.trim());
+  if (context?.pendingBookingId) query.set('pendingBookingId', context.pendingBookingId);
+
+  return `/configure-fit?${query.toString()}`;
 }
 
 function hasMtmIntakeData(profile: {
@@ -240,7 +259,12 @@ export const BookingService = {
     });
 
     const fitIntakeStatus = resolveFitIntakeStatus(fitProfile);
-    const fitRefreshUrl = buildFitRefreshUrl(data.customerEmail);
+    const fitRefreshUrl = buildFitRefreshUrl(data.customerEmail, {
+      serviceType: data.serviceType,
+      date: data.date,
+      timeSlot: data.timeSlot,
+      location: data.location,
+    });
 
     if (requiresFitIntake(data.serviceType)) {
       if (fitIntakeStatus === 'missing') {
@@ -305,6 +329,17 @@ export const BookingService = {
       select: { id: true },
     });
 
+    const pendingFitRefreshUrl =
+      bookingStatus === 'pending_fit_refresh'
+        ? buildFitRefreshUrl(data.customerEmail, {
+            serviceType: data.serviceType,
+            date: data.date,
+            timeSlot: data.timeSlot,
+            location: data.location,
+            pendingBookingId: booking.id,
+          })
+        : undefined;
+
     return {
       success: true,
       bookingId: booking.id,
@@ -315,7 +350,7 @@ export const BookingService = {
       bookingStatus,
       requiresFitRefresh: bookingStatus === 'pending_fit_refresh',
       fitIntakeStatus,
-      fitRefreshUrl: bookingStatus === 'pending_fit_refresh' ? fitRefreshUrl : undefined,
+      fitRefreshUrl: pendingFitRefreshUrl,
     };
   },
 

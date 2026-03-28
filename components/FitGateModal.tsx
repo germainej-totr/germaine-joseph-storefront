@@ -26,6 +26,13 @@ const initialFormData = {
 
 type FormDataType = typeof initialFormData;
 
+const STUDIO_LOCATION =
+  process.env.NEXT_PUBLIC_MAISON_STUDIO_ADDRESS || 'Maison Showroom (address shared on confirmation)';
+
+function mapAppointmentModeToServiceType(mode: string): 'showroom' | 'home_office' {
+  return mode === 'Studio' ? 'showroom' : 'home_office';
+}
+
 const OptionBtn = ({ field, value, label, formData, updateData, next }: { field: keyof FormDataType; value: string; label?: string; formData: FormDataType; updateData: (k: keyof FormDataType, v: string) => void; next: () => void }) => (
   <button 
     onClick={() => { updateData(field, value); next(); }}
@@ -83,8 +90,13 @@ export default function FitGateModal({ isOpen, onClose, productTitle }: FitGateM
     const chestEstimate = Math.round(Number(formData.weight_kg) * 1.25); 
     const waistEstimate = Math.round(chestEstimate - 12);
 
+    const serviceType = mapAppointmentModeToServiceType(formData.appointment_mode);
+    const prefilledLocation = serviceType === 'showroom' ? STUDIO_LOCATION : '';
+
     const params = new URLSearchParams({
       email: userEmail,
+      source: 'fit-gate-modal',
+      serviceType,
       chest: chestEstimate.toString(),
       waist: waistEstimate.toString(),
       height: formData.height_cm,
@@ -102,6 +114,10 @@ export default function FitGateModal({ isOpen, onClose, productTitle }: FitGateM
       profileName: formData.profile_name,
       notes: `Mode: ${formData.appointment_mode} | Timeline: ${formData.timeline_urgency} | Build: ${formData.body_build}`
     });
+
+    if (prefilledLocation) {
+      params.set('location', prefilledLocation);
+    }
 
     window.location.href = `/configure-fit?${params.toString()}`;
   };
@@ -161,6 +177,9 @@ export default function FitGateModal({ isOpen, onClose, productTitle }: FitGateM
                   </button>
                 ))}
               </div>
+              <p className="text-xs text-zinc-500 pt-2">
+                Studio bookings default to: {STUDIO_LOCATION}
+              </p>
             </div>
           )}
 

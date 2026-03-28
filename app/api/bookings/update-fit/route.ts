@@ -555,7 +555,12 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, count: 1, emailStatus });
+    return NextResponse.json({
+      success: true,
+      count: 1,
+      emailStatus,
+      promotedBookingId: promoted?.id ?? null,
+    });
   } catch (error) {
     console.error("Critical Sync Error:", error);
     return NextResponse.json({ success: false, error: "Internal Sync Error" }, { status: 500 });

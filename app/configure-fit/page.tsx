@@ -2,7 +2,9 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Calendar, Loader2, Ruler, MapPin, Users, Heart, Lock, Unlock, Clock } from 'lucide-react';
+import type { ServiceTypeId } from '@/types/booking';
 import { sendOffsiteAlert } from '@/app/actions/sendOffsiteAlert';
+import { useBookingServiceTypes } from '@/hooks/useBookingServiceTypes';
 import { useFitHandoff } from '@/lib/trouser/useFitHandoff';
 import { buildCanonicalTrouserMtmPayload } from '@/lib/trouser/TrouserMtmPayload';
 import { addTrouserToCart } from '@/lib/shopify/ShopifyTrouserAddToCartBridge';
@@ -162,8 +164,46 @@ const countProductionDaysBetween = (startExclusive: Date, endExclusive: Date) =>
 const formatYmd = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
+const STUDIO_LOCATION =
+  process.env.NEXT_PUBLIC_MAISON_STUDIO_ADDRESS || 'Maison Showroom (address shared on confirmation)';
+
+function mapAppointmentModeToServiceType(mode: string): ServiceTypeId {
+  if (mode === 'Home' || mode === 'Office' || mode === 'Location') return 'home_office';
+  return 'showroom';
+}
+
+function mapServiceTypeToAppointmentMode(serviceType: ServiceTypeId): string {
+  return serviceType === 'home_office' ? 'Home' : 'Studio';
+}
+
+function parseServiceType(value: string | null): ServiceTypeId | null {
+  if (
+    value === 'showroom' ||
+    value === 'home_office' ||
+    value === 'tailor_fitting' ||
+    value === 'virtual' ||
+    value === 'video_consult'
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function toYyyyMmDdLocal(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getMinBookingDateByLeadTime(leadTimeHours: number): string {
+  const date = new Date(Date.now() + leadTimeHours * 60 * 60 * 1000);
+  return toYyyyMmDdLocal(date);
+}
+
 function FitConfiguratorContent() {
   const searchParams = useSearchParams();
+  const { serviceTypeMap } = useBookingServiceTypes();
   const {
     snapshot: trouserDesignSnapshot,
     source: trouserDesignSource,
@@ -176,6 +216,9 @@ function FitConfiguratorContent() {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [onLocationAddress, setOnLocationAddress] = useState('');
+  const [bookingServiceType, setBookingServiceType] = useState<ServiceTypeId>('showroom');
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [weddingDate, setWeddingDate] = useState('');
   const [bridalPartyCount, setBridalPartyCount] = useState('1');
 
@@ -212,6 +255,11 @@ function FitConfiguratorContent() {
 
   const [result, setResult] = useState<FitComputationResult | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const minBookingDate = useMemo(
+    () => getMinBookingDateByLeadTime(serviceTypeMap[bookingServiceType]?.leadTimeHours ?? 48),
+    [bookingServiceType, serviceTypeMap],
+  );
 
   const weddingProductionValidation = useMemo(() => {
     if (modalData.useCase !== 'Wedding') {
@@ -275,35 +323,14 @@ function FitConfiguratorContent() {
     };
   }, [modalData.timeline, modalData.useCase, selectedDate, weddingDate]);
 
-  const getMinBookingDate = () => {
-    const date = new Date();
-    date.setDate(date.getDate() + 2);
-    return date.toISOString().split('T')[0];
-  };
-
-  const generateTimeSlots = () => {
-    const slots: string[] = [];
-    const currentTime = new Date();
-    currentTime.setHours(9, 0, 0, 0);
-    const duration = 75;
-    const buffer = 30;
-
-    for (let i = 0; i < 6; i++) {
-      const hours = currentTime.getHours();
-      const minutes = currentTime.getMinutes();
-      const ampm = hours >= 12 ? 'PM' : 'AM';
-      const displayHours = hours % 12 || 12;
-      slots.push(`${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`);
-      currentTime.setMinutes(currentTime.getMinutes() + duration + buffer);
-    }
-
-    return slots;
-  };
-
   useEffect(() => {
     const email = searchParams.get('email');
     const useCase = searchParams.get('primaryUseCase');
     const mode = searchParams.get('appointmentMode');
+    const serviceTypeFromQuery = parseServiceType(searchParams.get('serviceType'));
+    const resolvedServiceType = serviceTypeFromQuery || mapAppointmentModeToServiceType(mode || 'Studio');
+    const modeFromServiceType = mapServiceTypeToAppointmentMode(resolvedServiceType);
+    const locationFromQuery = searchParams.get('location') || '';
 
     trackFitFlowEvent({
       eventName: 'gjm_fit_flow_start',
@@ -321,11 +348,16 @@ function FitConfiguratorContent() {
 
     setModalData({
       useCase: useCase || '',
-      appointmentMode: mode || 'Studio',
+      appointmentMode: mode || modeFromServiceType,
       timeline: searchParams.get('productionTimeline') || '',
       bodyBuild: searchParams.get('bodyBuild') || '',
       profileName: searchParams.get('profileName') || 'New Bespoke Profile',
     });
+
+    setBookingServiceType(resolvedServiceType);
+    setSelectedDate(searchParams.get('date') || '');
+    setSelectedTime(searchParams.get('timeSlot') || '');
+    setOnLocationAddress(locationFromQuery);
 
     setAttributes((prev) => ({
       ...prev,
@@ -341,6 +373,49 @@ function FitConfiguratorContent() {
       seatShape: searchParams.get('seatShape') || prev.seatShape,
     }));
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!selectedDate) {
+      setAvailableSlots([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadAvailability() {
+      try {
+        setIsCheckingAvailability(true);
+
+        const response = await fetch('/api/bookings/availability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: selectedDate, serviceType: bookingServiceType }),
+        });
+
+        const data = await response.json();
+        if (cancelled) return;
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load availability');
+        }
+
+        const slots: string[] = Array.isArray(data.availableSlots) ? data.availableSlots : [];
+        setAvailableSlots(slots);
+        setSelectedTime((previous) => (slots.includes(previous) ? previous : ''));
+      } catch {
+        if (cancelled) return;
+        setAvailableSlots([]);
+      } finally {
+        if (!cancelled) setIsCheckingAvailability(false);
+      }
+    }
+
+    loadAvailability();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingServiceType, selectedDate]);
 
   const handlePhysicalSubmit = () => {
     if (!attributes.chest || !attributes.stomach || !attributes.waist || !attributes.hips || !userEmail) {
@@ -421,6 +496,7 @@ function FitConfiguratorContent() {
 
     const offsiteModes = ['Home', 'Office', 'Location'];
     const isOffsite = offsiteModes.includes(modalData.appointmentMode);
+    const resolvedServiceType = bookingServiceType;
 
     if (!selectedDate) {
       alert('Please select a date for your fitting.');
@@ -583,6 +659,53 @@ function FitConfiguratorContent() {
       if (!response.ok) {
         const bookingError = await response.text();
         throw new Error(`Failed to update booking: ${response.status} ${response.statusText} - ${bookingError}`);
+      }
+
+      const fitSyncResult = (await response.json().catch(() => null)) as
+        | { promotedBookingId?: string | null }
+        | null;
+
+      const promotedBookingId =
+        typeof fitSyncResult?.promotedBookingId === 'string' && fitSyncResult.promotedBookingId
+          ? fitSyncResult.promotedBookingId
+          : null;
+
+      const shouldAutoCreateBooking =
+        searchParams.get('source') === 'fit-booking-refresh' ||
+        Boolean(searchParams.get('serviceType') && searchParams.get('date') && searchParams.get('timeSlot'));
+
+      if (shouldAutoCreateBooking && !promotedBookingId) {
+        const resolvedLocation = isOffsite
+          ? onLocationAddress.trim()
+          : (searchParams.get('location') || STUDIO_LOCATION);
+
+        const bookingResponse = await fetch('/api/bookings/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            serviceType: resolvedServiceType,
+            location: resolvedLocation,
+            date: selectedDate,
+            timeSlot: appointmentTimeValue,
+            customerEmail: userEmail,
+            notes: `Created after Smart Fit completion (${modalData.appointmentMode || resolvedServiceType})`,
+          }),
+        });
+
+        const bookingData = await bookingResponse.json();
+        if (!bookingResponse.ok || !bookingData.success) {
+          throw new Error(bookingData.message || 'Unable to create booking after fit profile save');
+        }
+
+        const params = new URLSearchParams({
+          time: appointmentTimeValue,
+          date: selectedDate,
+          email: userEmail,
+          useCase: modalData.useCase || 'Business',
+          serviceType: resolvedServiceType,
+        });
+        window.location.href = `/booking-confirmed?${params.toString()}`;
+        return;
       }
 
       if (isOffsite) {
@@ -909,7 +1032,7 @@ function FitConfiguratorContent() {
                   </label>
                   <input
                     type="date"
-                    min={getMinBookingDate()}
+                    min={minBookingDate}
                     className="w-full p-4 border rounded-md text-sm bg-white"
                     value={selectedDate}
                     onChange={(e) => {
@@ -917,7 +1040,9 @@ function FitConfiguratorContent() {
                       setSelectedTime('');
                     }}
                   />
-                  <p className="text-[9px] text-zinc-400 italic font-medium">* 48-hour minimum coordination lead time required.</p>
+                  <p className="text-[9px] text-zinc-400 italic font-medium">
+                    * Minimum notice based on service type policy ({serviceTypeMap[bookingServiceType]?.leadTimeHours ?? 48}h).
+                  </p>
                 </div>
 
                 {['Home', 'Office', 'Location'].includes(modalData.appointmentMode) ? (
@@ -939,7 +1064,7 @@ function FitConfiguratorContent() {
                     </div>
                     <div>
                       <p className="text-[10px] font-bold uppercase text-zinc-500 tracking-widest">Maison Location</p>
-                      <p className="text-sm font-medium mt-1">102 Savile Row, London, W1S 3PB</p>
+                      <p className="text-sm font-medium mt-1">{searchParams.get('location') || STUDIO_LOCATION}</p>
                     </div>
                   </div>
                 )}
@@ -956,7 +1081,15 @@ function FitConfiguratorContent() {
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {generateTimeSlots().map((time) => (
+                  {isCheckingAvailability && (
+                    <p className="col-span-full text-sm text-zinc-500">Checking availability...</p>
+                  )}
+
+                  {!isCheckingAvailability && !availableSlots.length && (
+                    <p className="col-span-full text-sm text-zinc-400">Select a date to load available windows.</p>
+                  )}
+
+                  {!isCheckingAvailability && availableSlots.map((time) => (
                     <button
                       key={time}
                       onClick={() => setSelectedTime(time)}
