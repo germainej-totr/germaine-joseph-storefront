@@ -3,8 +3,9 @@ import { getFabricById } from '@/lib/fabric/fabric-service';
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
+  const params = await context.params;
   const { id } = params;
 
   if (!id || typeof id !== 'string') {
