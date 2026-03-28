@@ -17,6 +17,28 @@ export const MTM_CATEGORY_SCHEMA = z.enum([
   'vest',
 ]);
 
+export const SERVICE_TYPE_OPTION_SCHEMA = z.object({
+  id: SERVICE_TYPE_ID_SCHEMA,
+  handle: z.string().min(1, 'handle is required'),
+  label: z.string().min(1, 'label is required'),
+  durationMin: z.number().finite().nonnegative(),
+  depositAmount: z.number().finite().nonnegative(),
+  leadTimeHours: z.number().finite().nonnegative(),
+  travelRequired: z.boolean(),
+  slots: z.array(z.string().min(1)).optional(),
+  zones: z
+    .object({
+      radius_km: z.number().finite().optional(),
+      flat_fee: z.number().finite().optional(),
+    })
+    .optional(),
+});
+
+export const BOOKING_SERVICE_TYPE_CATALOG_RESPONSE_SCHEMA = z.object({
+  serviceTypes: z.array(SERVICE_TYPE_OPTION_SCHEMA),
+  error: z.string().optional(),
+});
+
 export const AVAILABILITY_REQUEST_SCHEMA = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be in YYYY-MM-DD format'),
   serviceType: SERVICE_TYPE_ID_SCHEMA.optional(),

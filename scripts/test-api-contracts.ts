@@ -4,10 +4,12 @@ import type { ZodSafeParseResult } from 'zod';
 import {
   ADD_MTM_TROUSER_REQUEST_SCHEMA,
   AVAILABILITY_REQUEST_SCHEMA,
+  BOOKING_SERVICE_TYPE_CATALOG_RESPONSE_SCHEMA,
   BOOKING_UPDATE_REQUEST_SCHEMA,
   CART_ADD_REQUEST_SCHEMA,
   CONFIRM_REQUEST_SCHEMA,
 } from '../lib/contracts/apiSchemas.ts';
+import { FALLBACK_SERVICE_TYPES } from '../lib/booking/serviceTypeCatalogClient.ts';
 
 function assertValid(name: string, result: ZodSafeParseResult<unknown>) {
   assert.equal(result.success, true, `${name} should be valid`);
@@ -106,6 +108,20 @@ assertInvalid(
   ADD_MTM_TROUSER_REQUEST_SCHEMA.safeParse({
     variantId: 'gid://shopify/ProductVariant/456',
     customAttributes: {},
+  }),
+);
+
+assertValid(
+  'booking service type catalog valid payload',
+  BOOKING_SERVICE_TYPE_CATALOG_RESPONSE_SCHEMA.safeParse({
+    serviceTypes: FALLBACK_SERVICE_TYPES,
+  }),
+);
+
+assertInvalid(
+  'booking service type catalog invalid payload',
+  BOOKING_SERVICE_TYPE_CATALOG_RESPONSE_SCHEMA.safeParse({
+    serviceTypes: [{ id: 'not-real', label: 'Broken' }],
   }),
 );
 

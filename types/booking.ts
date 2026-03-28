@@ -42,6 +42,11 @@ export interface ServiceTypeOption {
   zones?: { radius_km?: number; flat_fee?: number };
 }
 
+export interface BookingServiceTypeCatalogResponse {
+  serviceTypes: ServiceTypeOption[];
+  error?: string;
+}
+
 export interface BookingLocationOption {
   id: string;
   label: string;

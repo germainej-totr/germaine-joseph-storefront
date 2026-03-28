@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ServiceTypeOption } from '@/types/booking';
+import { BOOKING_SERVICE_TYPE_CATALOG_RESPONSE_SCHEMA } from '@/lib/contracts/apiSchemas';
+import type { BookingServiceTypeCatalogResponse, ServiceTypeOption } from '@/types/booking';
 import {
   FALLBACK_SERVICE_TYPES,
   firstServiceTypeId,
@@ -21,10 +22,11 @@ export function useBookingServiceTypes() {
     async function loadServiceTypes() {
       try {
         const response = await fetch('/api/bookings/service-types', { cache: 'no-store' });
-        const data = (await response.json()) as { serviceTypes?: ServiceTypeOption[] };
-        if (cancelled || !response.ok || !data.serviceTypes?.length) return;
+        const payload = (await response.json()) as BookingServiceTypeCatalogResponse;
+        const parsed = BOOKING_SERVICE_TYPE_CATALOG_RESPONSE_SCHEMA.safeParse(payload);
+        if (cancelled || !response.ok || !parsed.success || !parsed.data.serviceTypes.length) return;
 
-        setServiceTypes(data.serviceTypes);
+        setServiceTypes(parsed.data.serviceTypes as ServiceTypeOption[]);
       } catch {
         // Keep fallback service type catalog when API is unavailable.
       }
