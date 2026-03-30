@@ -22,6 +22,7 @@ import {
 import { formatAppointmentLabel } from '@/lib/booking/calendar';
 import { getServiceTypeConfig, isServiceType } from '@/lib/booking/serviceTypes';
 import { getLifecycleEventMap, getKlaviyoTriggerPlan, getPosthogTriggerPlan } from '@/lib/automation/lifecycleEventMap';
+import { createBookingManageToken } from '@/lib/session';
 
 /**
  * POST /api/automation/lifecycle-reminder-cron
@@ -152,6 +153,10 @@ export async function POST(request: Request) {
           ? await getServiceTypeConfig(booking.serviceType).catch(() => null)
           : null;
         const appointmentMode = serviceTypeConfig?.label || booking.serviceType;
+        const manageToken = createBookingManageToken({
+          bookingId: booking.id,
+          email: booking.email,
+        });
 
         const emailRes = dryRun
           ? { ok: true, id: 'dry-run' }
@@ -160,7 +165,7 @@ export async function POST(request: Request) {
               appointmentLabel: formatAppointmentLabel(parts.date, parts.timeSlot),
               appointmentMode,
               location,
-              manageUrl: `${appBaseUrl}/booking-confirmed?bookingId=${encodeURIComponent(booking.id)}`,
+              manageUrl: `${appBaseUrl}/booking-confirmed?bookingId=${encodeURIComponent(booking.id)}&manageToken=${encodeURIComponent(manageToken)}`,
             });
 
         if (emailRes.ok) {

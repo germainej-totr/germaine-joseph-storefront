@@ -4,6 +4,8 @@ import AccountSessionActions from '@/components/AccountSessionActions';
 import AccountLinkForm from '@/components/AccountLinkForm';
 import FitProfileSummaryCard from '@/components/FitProfileSummaryCard';
 import { FitProfileService } from '@/lib/fit/FitProfileService';
+import AccountHistoryCard from '@/components/AccountHistoryCard';
+import { AccountHistoryService } from '@/lib/account/AccountHistoryService';
 
 type AccountPageSearchParams = {
   oauth?: string;
@@ -75,6 +77,7 @@ export default async function AccountPage({
   }
 
   const profiles = session ? await FitProfileService.listProfilesForCurrentOwner() : [];
+  const history = session ? await AccountHistoryService.getCurrentOwnerHistory(8) : null;
 
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-6 py-10">
@@ -157,6 +160,8 @@ export default async function AccountPage({
           </section>
 
           <FitProfileSummaryCard initialProfiles={profiles} />
+
+          {history ? <AccountHistoryCard history={history} /> : null}
         </div>
       )}
     </main>

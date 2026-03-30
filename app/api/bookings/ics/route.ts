@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { buildIcsEventContent } from '@/lib/booking/calendar';
 import { getServiceTypeConfig, isServiceType } from '@/lib/booking/serviceTypes';
+import { hasBookingAccess } from '@/lib/booking/bookingAccess';
 
 function toDateAndTimeSlot(startAt: Date): { date: string; timeSlot: string } {
   const date = startAt.toISOString().slice(0, 10);
@@ -39,15 +40,32 @@ export async function GET(request: Request) {
       where: { id: bookingId },
       select: {
         id: true,
+        email: true,
         serviceType: true,
         startAt: true,
         location: true,
         status: true,
+        fitProfile: {
+          select: {
+            customerId: true,
+          },
+        },
       },
     });
 
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
+
+    const accessAllowed = await hasBookingAccess({
+      request,
+      bookingId: booking.id,
+      bookingEmail: booking.email,
+      fitProfileCustomerId: booking.fitProfile?.customerId,
+    });
+
+    if (!accessAllowed) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 });
     }
 
     const serviceTypeLabel = isServiceType(booking.serviceType)

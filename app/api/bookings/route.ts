@@ -14,6 +14,19 @@ import { buildCalendarLinks, formatAppointmentLabel } from '@/lib/booking/calend
 import { getServiceTypeConfig } from '@/lib/booking/serviceTypes';
 import { emitBookingLifecycleEvent } from '@/lib/automation/bookingLifecycleEvents';
 import { captureMtmFunnelEvent } from '@/lib/analytics/captureMtmFunnelEvent';
+import { createBookingManageToken } from '@/lib/session';
+
+function getAppBaseUrl(request: Request): string {
+  const url = new URL(request.url);
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const forwardedProto = request.headers.get('x-forwarded-proto');
+
+  if (forwardedHost) {
+    return `${forwardedProto || 'https'}://${forwardedHost}`;
+  }
+
+  return url.origin;
+}
 
 export async function POST(req: Request) {
   try {
@@ -111,7 +124,27 @@ export async function POST(req: Request) {
       }).catch((err) => console.error('Fit refresh email send failed:', err));
     }
 
-    return NextResponse.json(result, { status: 200 });
+    const manageToken =
+      result.bookingId && body.customerEmail
+        ? createBookingManageToken({
+            bookingId: result.bookingId,
+            email: body.customerEmail,
+          })
+        : null;
+    const appBaseUrl = getAppBaseUrl(req).replace(/\/$/, '');
+    const manageUrl =
+      manageToken && result.bookingId
+        ? `${appBaseUrl}/booking-confirmed?bookingId=${encodeURIComponent(result.bookingId)}&manageToken=${encodeURIComponent(manageToken)}`
+        : null;
+
+    return NextResponse.json(
+      {
+        ...result,
+        manageToken,
+        manageUrl,
+      },
+      { status: 200 },
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });

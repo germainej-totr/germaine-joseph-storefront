@@ -6,6 +6,7 @@ import { emitBookingLifecycleEvent } from '@/lib/automation/bookingLifecycleEven
 import { formatAppointmentLabel } from '@/lib/booking/calendar';
 import { getServiceTypeConfig, isServiceType } from '@/lib/booking/serviceTypes';
 import { sendBookingCancelledEmail, sendBookingRescheduledEmail } from '@/lib/resend';
+import { hasBookingAccess } from '@/lib/booking/bookingAccess';
 
 function readAddressFromLocation(location: unknown): string {
   if (typeof location !== 'object' || location === null) {
@@ -52,8 +53,38 @@ export async function PATCH(
 
     const existing = await prisma.booking.findUnique({
       where: { id },
-      select: { email: true, serviceType: true, location: true, startAt: true },
+      select: {
+        id: true,
+        email: true,
+        serviceType: true,
+        location: true,
+        startAt: true,
+        fitProfile: {
+          select: {
+            customerId: true,
+          },
+        },
+      },
     });
+
+    const hasTokenSignal = Boolean(parsed.data.manageToken || request.headers.get('x-gjm-manage-token'));
+    if (hasTokenSignal) {
+      if (!existing) {
+        return NextResponse.json({ success: false, message: 'Booking not found' }, { status: 404 });
+      }
+
+      const accessAllowed = await hasBookingAccess({
+        request,
+        bookingId: existing.id,
+        bookingEmail: existing.email,
+        fitProfileCustomerId: existing.fitProfile?.customerId,
+        manageToken: parsed.data.manageToken,
+      });
+
+      if (!accessAllowed) {
+        return NextResponse.json({ success: false, message: 'forbidden' }, { status: 403 });
+      }
+    }
 
     const result = await BookingService.updateBooking(id, parsed.data);
 

@@ -37,4 +37,16 @@ Finalize pre-launch readiness across environment control, observability, QA, and
 
 ## Status
 
-Specified and ready for implementation.
+Implemented in repo as an operational readiness pack:
+
+- `scripts/qa-launch-readiness.mjs` for env, cron, and key route checks.
+- `npm run qa:launch-readiness` script entry.
+- Pre-production checklist: `docs/A24_PRE_PRODUCTION_CHECKLIST.md`.
+- Launch checklist: `docs/A24_LAUNCH_CHECKLIST.md`.
+- Secrets rotation checklist: `docs/A24_SECRETS_ROTATION_CHECKLIST.md`.
+- Monitoring and alerts guide: `docs/A24_MONITORING_AND_ALERT_SETUP.md`.
+- Rollback runbook: `docs/A24_ROLLBACK_RUNBOOK.md`.
+
+Recommended follow-up:
+
+- Wire alert channels/thresholds into your chosen monitoring stack and record contact ownership.

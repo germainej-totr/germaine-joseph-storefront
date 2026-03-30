@@ -26,6 +26,7 @@
     "qa:predeploy": "npm run qa:prisma-connectivity && npm run test:contracts && npm run lint && npm run build",
     "qa:predeploy:strict": "npm run db:migrate:doctor:gate && npm run test:contracts && npm run lint && npm run build",
     "qa:runtime-smoke": "node scripts/runtime-smoke.mjs",
+    "qa:launch-readiness": "node scripts/qa-launch-readiness.mjs",
     "qa:mtm-ui-checklist": "node scripts/posthog/mtm-ui-path-qa.mjs checklist",
     "qa:mtm-ui-init-report": "node scripts/posthog/mtm-ui-path-qa.mjs init-report",
     "verify:analytics": "node scripts/verifyAnalyticsPipeline.mjs",

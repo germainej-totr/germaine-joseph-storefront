@@ -222,14 +222,22 @@ function BookFitContent() {
         return;
       }
 
-      const params = new URLSearchParams({
-        time: timeSlot,
-        date,
-        email,
-        useCase,
-        serviceType,
-      });
-      window.location.href = `/booking-confirmed?${params.toString()}`;
+      const destination = new URL(
+        typeof data.manageUrl === 'string' ? data.manageUrl : '/booking-confirmed',
+        window.location.origin,
+      );
+      destination.searchParams.set('time', timeSlot);
+      destination.searchParams.set('date', date);
+      destination.searchParams.set('email', email);
+      destination.searchParams.set('useCase', useCase);
+      destination.searchParams.set('serviceType', serviceType);
+      if (typeof data.bookingId === 'string' && data.bookingId) {
+        destination.searchParams.set('bookingId', data.bookingId);
+      }
+      if (typeof data.manageToken === 'string' && data.manageToken) {
+        destination.searchParams.set('manageToken', data.manageToken);
+      }
+      window.location.href = `${destination.pathname}?${destination.searchParams.toString()}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to confirm booking');
     } finally {

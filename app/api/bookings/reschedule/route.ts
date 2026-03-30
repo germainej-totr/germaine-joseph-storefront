@@ -6,6 +6,9 @@ import { emitBookingLifecycleEvent } from '@/lib/automation/bookingLifecycleEven
 import { buildCalendarLinks, formatAppointmentLabel } from '@/lib/booking/calendar';
 import { getServiceTypeConfig, isServiceType } from '@/lib/booking/serviceTypes';
 import { sendBookingRescheduledEmail } from '@/lib/resend';
+import { createBookingManageToken } from '@/lib/session';
+import prisma from '@/lib/prisma';
+import { hasBookingAccess } from '@/lib/booking/bookingAccess';
 
 function readAddressFromLocation(location: unknown): string {
   if (typeof location !== 'object' || location === null) {
@@ -33,6 +36,38 @@ export async function POST(request: Request) {
       );
     }
 
+    const hasTokenSignal = Boolean(parsed.data.manageToken || request.headers.get('x-gjm-manage-token'));
+    if (hasTokenSignal) {
+      const booking = await prisma.booking.findUnique({
+        where: { id: parsed.data.bookingId },
+        select: {
+          id: true,
+          email: true,
+          fitProfile: {
+            select: {
+              customerId: true,
+            },
+          },
+        },
+      });
+
+      if (!booking) {
+        return NextResponse.json({ success: false, message: 'Booking not found.' }, { status: 404 });
+      }
+
+      const accessAllowed = await hasBookingAccess({
+        request,
+        bookingId: booking.id,
+        bookingEmail: booking.email,
+        fitProfileCustomerId: booking.fitProfile?.customerId,
+        manageToken: parsed.data.manageToken,
+      });
+
+      if (!accessAllowed) {
+        return NextResponse.json({ success: false, message: 'forbidden' }, { status: 403 });
+      }
+    }
+
     const result = await RescheduleBookingService.reschedule(parsed.data);
     if (!result.ok) {
       return NextResponse.json(
@@ -56,7 +91,11 @@ export async function POST(request: Request) {
     });
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-    const icsDownloadUrl = `${siteUrl.replace(/\/$/, '')}/api/bookings/ics?bookingId=${encodeURIComponent(result.bookingId)}`;
+    const manageToken = createBookingManageToken({
+      bookingId: result.bookingId,
+      email: result.current.email,
+    });
+    const icsDownloadUrl = `${siteUrl.replace(/\/$/, '')}/api/bookings/ics?bookingId=${encodeURIComponent(result.bookingId)}&manageToken=${encodeURIComponent(manageToken)}`;
 
     emitBookingLifecycleEvent('booking_rescheduled', {
       bookingId: result.bookingId,
@@ -99,6 +138,7 @@ export async function POST(request: Request) {
         outlookCalendarUrl: links?.outlookCalendarUrl || null,
         icsDownloadUrl,
       },
+      manageToken,
     });
   } catch (error) {
     console.error('Reschedule API error:', error);

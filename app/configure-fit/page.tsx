@@ -725,14 +725,22 @@ function FitConfiguratorContent() {
           throw new Error(bookingData.message || 'Unable to create booking after fit profile save');
         }
 
-        const params = new URLSearchParams({
-          time: appointmentTimeValue,
-          date: selectedDate,
-          email: userEmail,
-          useCase: modalData.useCase || 'Business',
-          serviceType: resolvedServiceType,
-        });
-        window.location.href = `/booking-confirmed?${params.toString()}`;
+        const destination = new URL(
+          typeof bookingData.manageUrl === 'string' ? bookingData.manageUrl : '/booking-confirmed',
+          window.location.origin,
+        );
+        destination.searchParams.set('time', appointmentTimeValue);
+        destination.searchParams.set('date', selectedDate);
+        destination.searchParams.set('email', userEmail);
+        destination.searchParams.set('useCase', modalData.useCase || 'Business');
+        destination.searchParams.set('serviceType', resolvedServiceType);
+        if (typeof bookingData.bookingId === 'string' && bookingData.bookingId) {
+          destination.searchParams.set('bookingId', bookingData.bookingId);
+        }
+        if (typeof bookingData.manageToken === 'string' && bookingData.manageToken) {
+          destination.searchParams.set('manageToken', bookingData.manageToken);
+        }
+        window.location.href = `${destination.pathname}?${destination.searchParams.toString()}`;
         return;
       }
 

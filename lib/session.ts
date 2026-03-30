@@ -18,8 +18,14 @@ export interface EmailLinkChallengePayload extends SignedPayloadBase {
   code: string;
 }
 
+export interface BookingManageTokenPayload extends SignedPayloadBase {
+  bookingId: string;
+  email: string;
+}
+
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const LINK_CHALLENGE_TTL_MS = 1000 * 60 * 10;
+const BOOKING_MANAGE_TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 14;
 
 function encode(input: string) {
   return Buffer.from(input, 'utf8').toString('base64url');
@@ -130,6 +136,48 @@ export function parseEmailLinkChallenge(serialized: string | undefined | null) {
     return null;
   }
   return parsed;
+}
+
+export function createBookingManageTokenPayload(input: {
+  bookingId: string;
+  email: string;
+  ttlMs?: number;
+}): BookingManageTokenPayload {
+  const ttlMs =
+    typeof input.ttlMs === 'number' && Number.isFinite(input.ttlMs) && input.ttlMs > 0
+      ? input.ttlMs
+      : BOOKING_MANAGE_TOKEN_TTL_MS;
+
+  return {
+    bookingId: input.bookingId,
+    email: input.email.trim().toLowerCase(),
+    expiresAt: new Date(Date.now() + ttlMs).toISOString(),
+  };
+}
+
+export function serializeBookingManageToken(payload: BookingManageTokenPayload) {
+  return serializeSignedPayload(payload);
+}
+
+export function createBookingManageToken(input: {
+  bookingId: string;
+  email: string;
+  ttlMs?: number;
+}) {
+  return serializeBookingManageToken(createBookingManageTokenPayload(input));
+}
+
+export function parseBookingManageToken(serialized: string | undefined | null) {
+  const parsed = parseSignedPayload<BookingManageTokenPayload>(serialized);
+  if (!parsed || !parsed.bookingId || !parsed.email) {
+    return null;
+  }
+
+  return {
+    bookingId: parsed.bookingId,
+    email: parsed.email.toLowerCase(),
+    expiresAt: parsed.expiresAt,
+  };
 }
 
 export function applySessionCookies(response: NextResponse, payload: AppSessionPayload) {

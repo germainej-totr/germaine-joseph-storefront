@@ -34,4 +34,15 @@ Ensure MTM and booking actions are customer-safe, ownership-enforced, and accoun
 
 ## Status
 
-Specified and ready for implementation.
+Partially implemented in repo with customer-account ownership hardening primitives:
+
+- Signed booking manage tokens added for customer-safe booking action links.
+- Booking ICS download now enforces ownership via signed manage token or active session.
+- Booking confirm/reschedule APIs now emit manage tokens/URLs for downstream secure actions.
+- Booking reschedule/manage endpoints now support optional token-backed ownership checks (activated when manage token is supplied).
+- Account-linked history service/API/UI added to expose owned bookings and MTM production specs.
+
+Remaining hardening scope (future increment):
+
+- Apply equivalent ownership gates to all booking mutate/read endpoints used in customer self-service.
+- Add explicit admin/staff authorization boundary for internal booking mutation tools.

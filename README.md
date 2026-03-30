@@ -43,6 +43,24 @@ This runs, in order:
 
 If this command passes, the current branch is considered release-ready.
 
+For launch-day readiness checks (A24), run:
+
+```bash
+npm run qa:launch-readiness
+```
+
+Optional route checks against a deployed URL:
+
+```bash
+LAUNCH_BASE_URL=https://germaine-joseph-storefront.vercel.app npm run qa:launch-readiness
+```
+
+If you only want advisory output for missing env vars in a local shell:
+
+```bash
+LAUNCH_ALLOW_MISSING_ENV=true npm run qa:launch-readiness
+```
+
 Strict mode runs migration doctor gate first (`db:migrate:doctor:gate`) and fails fast when Prisma doctor JSON reports `ok: false`.
 When used in CI (for example GitHub Actions), set a `DATABASE_URL` repository secret so Prisma connectivity and migrate-status checks can run.
 
