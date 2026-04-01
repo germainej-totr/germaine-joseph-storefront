@@ -46,4 +46,15 @@ Create the foundational fit profile flow so MTM-required products cannot proceed
 
 ## Status
 
-Provided externally as completed package zip (`totr_headless_A4.zip`). Repository integration and validation status should be tracked in implementation PR/commit history.
+Integrated and validated in-repo.
+
+Latest closeout includes:
+
+- Compatibility aliases for fit API endpoints (`/api/fit`, `/api/fit/[id]`) while preserving existing profile routes.
+- Server-side `FIT_REQUIRED` enforcement in cart add flow by evaluating Shopify variant/product fit-gate metafield.
+- Cart cookie compatibility for both `totr_cart_id` (primary) and `shopify_cart_id` (legacy fallback).
+
+Validation evidence:
+
+- `npm run qa:predeploy` passes (Prisma connectivity, contracts, lint with warnings only, build).
+- `qa-launch-readiness` passes with production route checks.
