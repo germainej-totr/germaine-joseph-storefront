@@ -11,6 +11,34 @@ import {
 import { normalizeGjmLineItemAttributes, toShopifyAttributeInput } from '@/lib/shopify/gjmLineItemAttributes';
 import { CART_ADD_REQUEST_SCHEMA } from '@/lib/contracts/apiSchemas';
 import { captureMtmFunnelEvent } from '@/lib/analytics/captureMtmFunnelEvent';
+import { parseMetafieldBoolean } from '@/lib/metafield';
+import { shopifyStorefrontGraphQL } from '@/lib/shopify/storefront';
+
+const MTM_REQUIRED_BY_VARIANT_QUERY = `
+  query MtmRequiredByVariant($id: ID!) {
+    node(id: $id) {
+      ... on ProductVariant {
+        id
+        product {
+          mtm_required: metafield(namespace: "gjm", key: "required_fit_gate") { value }
+        }
+      }
+    }
+  }
+`;
+
+type MtmRequiredByVariantResponse = {
+  data?: {
+    node?: {
+      product?: {
+        mtm_required?: {
+          value?: unknown;
+        };
+      };
+    };
+  };
+  errors?: Array<{ message?: string }>;
+};
 
 function isRecoverableCartError(error: unknown): boolean {
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
@@ -72,6 +100,20 @@ async function validateMtmOwnership(body: CartAddRequest): Promise<{ ok: true } 
   return { ok: true };
 }
 
+async function isFitRequiredForVariant(variantId: string): Promise<boolean> {
+  const response = await shopifyStorefrontGraphQL<MtmRequiredByVariantResponse>(
+    MTM_REQUIRED_BY_VARIANT_QUERY,
+    { id: variantId },
+  );
+
+  if (response?.errors?.length) {
+    const message = response.errors[0]?.message || 'Failed to resolve MTM requirement';
+    throw new Error(message);
+  }
+
+  return parseMetafieldBoolean(response?.data?.node?.product?.mtm_required?.value);
+}
+
 export async function POST(req: Request) {
   try {
     const parsed = CART_ADD_REQUEST_SCHEMA.safeParse(await req.json());
@@ -88,6 +130,14 @@ export async function POST(req: Request) {
     };
 
     const { variantId, quantity } = body;
+
+    const fitRequired = await isFitRequiredForVariant(variantId!);
+    if (fitRequired && !body.fitProfileId) {
+      return NextResponse.json(
+        { ok: false, code: 'FIT_REQUIRED', error: 'fit_profile_required' },
+        { status: 400 },
+      );
+    }
 
     const ownershipCheck = await validateMtmOwnership(body);
     if (!ownershipCheck.ok) {
@@ -161,18 +211,30 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         ok: true,
         cartId: cart.id,
         checkoutUrl: cart.checkoutUrl,
       },
-      {
-        headers: {
-          'Set-Cookie': `${getCartCookieName()}=${cart.id}; path=/; max-age=2592000; httponly; samesite=lax`,
-        },
-      },
     );
+
+    response.cookies.set(getCartCookieName(), cart.id, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+    response.cookies.set('shopify_cart_id', cart.id, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+
+    return response;
   } catch (error) {
     console.error('Error adding to cart:', error);
     const message = error instanceof Error ? error.message : 'Failed to add to cart';

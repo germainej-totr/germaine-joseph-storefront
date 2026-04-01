@@ -111,23 +111,33 @@ function reconstructCanonicalPayload(
 
   // Fallback to building from individual attributes
   const mtmSpec = safeParseJson(attrs.gjm_mtm_spec);
-
-  const payload: Partial<CanonicalTrouserMtmPayload> = {
-    fitProfile: {
-      fitProfileId: attrs.gjm_fit_profile_id,
-      bookingId: attrs.gjm_booking_id,
-      email: attrs.gjm_fit_email,
-      fitPreference: attrs.gjm_fit_preference,
-      jacketSize: parseInt(attrs.gjm_fit_jacket_size || '0', 10) || undefined,
-      trouserSize: parseInt(attrs.gjm_fit_trouser_size || '0', 10) || undefined,
-      appointmentDate: attrs.gjm_fit_appointment_date,
-      appointmentTime: attrs.gjm_fit_appointment_time,
-    } as any,
+  const fitProfile: Partial<CanonicalTrouserMtmPayload['fitProfile']> = {
+    fitProfileId: attrs.gjm_fit_profile_id,
+    bookingId: attrs.gjm_booking_id,
+    email: attrs.gjm_fit_email,
+    fitPreference: attrs.gjm_fit_preference,
+    jacketSize: parseInt(attrs.gjm_fit_jacket_size || '0', 10) || undefined,
+    trouserSize: parseInt(attrs.gjm_fit_trouser_size || '0', 10) || undefined,
+    appointmentDate: attrs.gjm_fit_appointment_date,
+    appointmentTime: attrs.gjm_fit_appointment_time,
   };
+
+  const payload: Partial<CanonicalTrouserMtmPayload> = {};
+
+  if (
+    typeof fitProfile.email === 'string' &&
+    typeof fitProfile.fitPreference === 'string' &&
+    typeof fitProfile.jacketSize === 'number' &&
+    typeof fitProfile.trouserSize === 'number' &&
+    typeof fitProfile.appointmentDate === 'string' &&
+    typeof fitProfile.appointmentTime === 'string'
+  ) {
+    payload.fitProfile = fitProfile as CanonicalTrouserMtmPayload['fitProfile'];
+  }
 
   // Add mtmSpec if available
   if (mtmSpec && typeof mtmSpec === 'object' && !Array.isArray(mtmSpec)) {
-    payload.mtmSpec = mtmSpec as any;
+    payload.mtmSpec = mtmSpec as CanonicalTrouserMtmPayload['mtmSpec'];
   }
 
   return payload;

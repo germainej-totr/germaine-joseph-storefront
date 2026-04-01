@@ -149,7 +149,7 @@ export function resolveResumeRoute(
 // React hook
 // ---------------------------------------------------------------------------
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 
 export interface UseMtmJourneyResult {
   state: MtmJourneyState | null;
@@ -167,15 +167,8 @@ export interface UseMtmJourneyResult {
  * Client-side hook for managing MTM journey state with localStorage persistence.
  */
 export function useMtmJourney(): UseMtmJourneyResult {
-  const [state, setState] = useState<MtmJourneyState | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Hydrate from storage on mount
-    const persisted = loadJourney();
-    setState(persisted);
-    setIsLoading(false);
-  }, []);
+  const [state, setState] = useState<MtmJourneyState | null>(() => loadJourney());
+  const [isLoading] = useState(false);
 
   const update = useCallback((next: MtmJourneyState) => {
     setState(next);

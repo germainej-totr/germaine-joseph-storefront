@@ -49,3 +49,10 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 }
+
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  return PATCH(request, context);
+}

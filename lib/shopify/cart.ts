@@ -1,6 +1,7 @@
 import { shopifyStorefrontGraphQL } from '@/lib/shopify/storefront';
 
-const CART_COOKIE_NAME = 'shopify_cart_id';
+const CART_COOKIE_NAME = 'totr_cart_id';
+const LEGACY_CART_COOKIE_NAME = 'shopify_cart_id';
 
 export interface ShopifyCartLine {
   id: string;
@@ -289,10 +290,23 @@ export async function removeShopifyCartLine(input: {
 
 export function parseCartIdFromCookieHeader(cookieHeader: string | null): string | null {
   if (!cookieHeader) return null;
-  const match = cookieHeader.match(new RegExp(`${CART_COOKIE_NAME}=([^;]+)`));
-  return match?.[1] ?? null;
+  const escapedNames = [CART_COOKIE_NAME, LEGACY_CART_COOKIE_NAME]
+    .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+
+  for (const name of escapedNames) {
+    const match = cookieHeader.match(new RegExp(`${name}=([^;]+)`));
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+
+  return null;
 }
 
 export function getCartCookieName() {
   return CART_COOKIE_NAME;
+}
+
+export function getLegacyCartCookieName() {
+  return LEGACY_CART_COOKIE_NAME;
 }

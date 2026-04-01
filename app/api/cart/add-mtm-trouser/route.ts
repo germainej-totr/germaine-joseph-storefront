@@ -140,18 +140,30 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     const lineItem = cart.lines?.edges?.[0]?.node;
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         ok: true,
         cartId: cart.id,
         lineItemId: lineItem?.id,
       },
-      {
-        headers: {
-          'Set-Cookie': `${getCartCookieName()}=${cart.id}; path=/; max-age=2592000; httponly; samesite=lax`,
-        },
-      },
     );
+
+    response.cookies.set(getCartCookieName(), cart.id, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+    response.cookies.set('shopify_cart_id', cart.id, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+
+    return response;
   } catch (error) {
     console.error('[addMtmTrouser] Exception:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';

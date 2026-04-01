@@ -188,19 +188,31 @@ export async function POST(req: Request): Promise<NextResponse> {
       }).catch((err) => console.error('gjm_mtm_checkout_start event emit failed:', err));
     }
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         ok: true,
         cartId: cart.id,
         checkoutUrl: cart.checkoutUrl,
         lineItemId: lineItem?.id,
       },
-      {
-        headers: {
-          'Set-Cookie': `${getCartCookieName()}=${cart.id}; path=/; max-age=2592000; httponly; samesite=lax`,
-        },
-      },
     );
+
+    response.cookies.set(getCartCookieName(), cart.id, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+    response.cookies.set('shopify_cart_id', cart.id, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+
+    return response;
   } catch (error) {
     console.error('[POST /api/cart/add-mtm-item]', error);
     const message = error instanceof Error ? error.message : 'Failed to add MTM item to cart';

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   fetchShopifyCart,
   getCartCookieName,
+  getLegacyCartCookieName,
   parseCartIdFromCookieHeader,
   removeShopifyCartLine,
   updateShopifyCartLine,
@@ -18,6 +19,13 @@ export async function GET(req: Request) {
     if (!cart) {
       const response = NextResponse.json({ ok: true, cart: null, lines: [] });
       response.cookies.set(getCartCookieName(), '', {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        expires: new Date(0),
+      });
+      response.cookies.set(getLegacyCartCookieName(), '', {
         httpOnly: true,
         sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production',

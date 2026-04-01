@@ -195,7 +195,7 @@ export function extractPayloadVersion(payload: unknown): string {
  * @param validation Validation result with errors
  * @returns Formatted error message
  */
-export function formatValidationErrors(validation: ValidationResult<any>): string {
+export function formatValidationErrors(validation: ValidationResult<unknown>): string {
   if (validation.ok) return '';
 
   if (validation.error && !validation.errors) {
