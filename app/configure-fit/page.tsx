@@ -7,10 +7,13 @@ import { sendOffsiteAlert } from '@/app/actions/sendOffsiteAlert';
 import { useBookingServiceTypes } from '@/hooks/useBookingServiceTypes';
 import { useBookingLocations } from '@/hooks/useBookingLocations';
 import { useFitHandoff } from '@/lib/trouser/useFitHandoff';
+import { useCategoryFitHandoff } from '@/lib/mtm/useCategoryFitHandoff';
 import { buildCanonicalTrouserMtmPayload } from '@/lib/trouser/TrouserMtmPayload';
 import { addTrouserToCart } from '@/lib/shopify/ShopifyTrouserAddToCartBridge';
+import { addMtmItemToCart } from '@/lib/shopify/ShopifyMtmItemAddToCartBridge';
 import { resolvePostFitDestination } from '@/lib/fit/flow';
 import { trackFitFlowEvent } from '@/lib/analytics/trackFitFlowEvent';
+import type { MtmCategory } from '@/types/mtm';
 
 type BlockMeasurements = Record<string, number>;
 type BlockSizeMap = Record<string, BlockMeasurements>;
@@ -168,6 +171,109 @@ const formatYmd = (date: Date) =>
 const STUDIO_LOCATION_FALLBACK =
   process.env.NEXT_PUBLIC_MAISON_STUDIO_ADDRESS || 'Maison Showroom (address shared on confirmation)';
 
+function extractNumericMeasurements(attributes: Record<string, string>): Record<string, number> {
+  const keys = ['chest', 'stomach', 'waist', 'hips', 'height', 'weight'];
+  const result: Record<string, number> = {};
+
+  for (const key of keys) {
+    const raw = attributes[key];
+    if (!raw) continue;
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed)) {
+      result[key] = parsed;
+    }
+  }
+
+  return result;
+}
+
+function buildGenericCategoryCartPayload(input: {
+  category: MtmCategory;
+  optionSet: string;
+  optionSetVersion: string;
+  selections: Record<string, string>;
+  designUpcharge: number;
+  fitProfileId?: string;
+  fitGateVersion?: string;
+  fabricId?: string;
+  email: string;
+  fitPreference: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  attributes: Record<string, string>;
+}): {
+  canonicalPayload: Record<string, unknown>;
+  lineItemAttributes: Record<string, string>;
+} {
+  const measurements = extractNumericMeasurements(input.attributes);
+
+  const canonicalPayload: Record<string, unknown> = {
+    version: 'v1',
+    category: input.category,
+    createdAt: new Date().toISOString(),
+    fitProfile: {
+      email: input.email,
+      fitPreference: input.fitPreference,
+      fitProfileId: input.fitProfileId,
+      appointmentDate: input.appointmentDate,
+      appointmentTime: input.appointmentTime,
+      fitGateVersion: input.fitGateVersion || input.optionSetVersion,
+    },
+    design: {
+      category: input.category,
+      optionSet: input.optionSet,
+      optionSetVersion: input.optionSetVersion,
+      selections: input.selections,
+      pricing: {
+        total: input.designUpcharge,
+      },
+      validation: {
+        isValid: true,
+      },
+    },
+    mtmSpec: {
+      category: input.category,
+      fabricCode: input.fabricId,
+      options: input.selections,
+      measurements,
+      fitGateVersion: input.fitGateVersion || input.optionSetVersion,
+      fitProfileId: input.fitProfileId,
+    },
+  };
+
+  const lineItemAttributes: Record<string, string> = {
+    gjm_mtm_category: input.category,
+    gjm_mtm_option_set: input.optionSet,
+    gjm_mtm_option_set_version: input.optionSetVersion,
+    [`gjm_${input.category}_selections`]: JSON.stringify(input.selections),
+    gjm_design_pricing_total: String(input.designUpcharge),
+    gjm_fit_email: input.email,
+    gjm_fit_preference: input.fitPreference,
+    gjm_fit_appointment_date: input.appointmentDate,
+    gjm_fit_appointment_time: input.appointmentTime,
+    gjm_mtm_canonical: JSON.stringify(canonicalPayload),
+    gjm_mtm_spec: JSON.stringify(canonicalPayload.mtmSpec || {}),
+    gjm_mtm_options: JSON.stringify(input.selections),
+    gjm_measurements: JSON.stringify(measurements),
+  };
+
+  if (input.fitProfileId) {
+    lineItemAttributes.gjm_fit_profile_id = input.fitProfileId;
+    lineItemAttributes.fit_profile_id = input.fitProfileId;
+  }
+
+  if (input.fitGateVersion) {
+    lineItemAttributes.gjm_fit_gate_version = input.fitGateVersion;
+    lineItemAttributes.fit_gate_version = input.fitGateVersion;
+  }
+
+  if (input.fabricId) {
+    lineItemAttributes.gjm_fabric_id = input.fabricId;
+  }
+
+  return { canonicalPayload, lineItemAttributes };
+}
+
 function mapAppointmentModeToServiceType(mode: string): ServiceTypeId {
   if (mode === 'Home' || mode === 'Office' || mode === 'Location') return 'home_office';
   return 'showroom';
@@ -211,6 +317,11 @@ function FitConfiguratorContent() {
     source: trouserDesignSource,
     requiresTrouserRedirect,
   } = useFitHandoff(searchParams);
+  const {
+    snapshot: categoryDesignSnapshot,
+    source: categoryDesignSource,
+  } = useCategoryFitHandoff(searchParams);
+  const activeMtmCategory = categoryDesignSnapshot?.category || (trouserDesignSnapshot ? 'trouser' : null);
   const [step, setStep] = useState(1);
   const [userEmail, setUserEmail] = useState('');
   const [isAutoFilled, setIsAutoFilled] = useState(false);
@@ -555,25 +666,56 @@ function FitConfiguratorContent() {
       }
 
       const appointmentTimeValue = finalTime || selectedTime;
-      const canonicalBeforeProfile = buildCanonicalTrouserMtmPayload({
-        email: userEmail,
-        fitPreference: result.label,
-        jacketSize: result.jacketSize,
-        trouserSize: result.trouserSize,
-        appointmentDate: selectedDate,
-        appointmentTime: appointmentTimeValue,
-        attributes: {
-          ...attributes,
-          onLocationAddress,
-          weddingDate,
-          bridalPartyCount,
-          ...modalData,
-        },
-        preferences,
-        jacketSpecs: result.jacketSpecs,
-        trouserSpecs: result.trouserSpecs,
-        trouserDesign: trouserDesignSnapshot,
-      });
+      const activeCategorySnapshot =
+        activeMtmCategory && activeMtmCategory !== 'trouser'
+          ? categoryDesignSnapshot
+          : null;
+
+      const canonicalBeforeProfile =
+        activeMtmCategory === 'trouser'
+          ? buildCanonicalTrouserMtmPayload({
+              email: userEmail,
+              fitPreference: result.label,
+              jacketSize: result.jacketSize,
+              trouserSize: result.trouserSize,
+              appointmentDate: selectedDate,
+              appointmentTime: appointmentTimeValue,
+              attributes: {
+                ...attributes,
+                onLocationAddress,
+                weddingDate,
+                bridalPartyCount,
+                ...modalData,
+              },
+              preferences,
+              jacketSpecs: result.jacketSpecs,
+              trouserSpecs: result.trouserSpecs,
+              trouserDesign: trouserDesignSnapshot,
+            })
+          : null;
+
+      const genericBeforeProfile =
+        activeCategorySnapshot
+          ? buildGenericCategoryCartPayload({
+              category: activeCategorySnapshot.category,
+              optionSet: activeCategorySnapshot.optionSet,
+              optionSetVersion: activeCategorySnapshot.optionSetVersion,
+              selections: activeCategorySnapshot.selections,
+              designUpcharge: activeCategorySnapshot.pricing.total,
+              fabricId: activeCategorySnapshot.fabricId,
+              email: userEmail,
+              fitPreference: result.label,
+              appointmentDate: selectedDate,
+              appointmentTime: appointmentTimeValue,
+              attributes: {
+                ...attributes,
+                onLocationAddress,
+                weddingDate,
+                bridalPartyCount,
+                ...modalData,
+              },
+            })
+          : null;
 
       const profilePayload = {
         email: userEmail,
@@ -594,8 +736,9 @@ function FitConfiguratorContent() {
             ...modalData,
           },
           trouserDesign: trouserDesignSnapshot,
-          mtmCanonical: canonicalBeforeProfile,
-          cartAttributesSnapshot: canonicalBeforeProfile.lineItemProperties,
+          categoryDesign: activeCategorySnapshot,
+          mtmCanonical: canonicalBeforeProfile || genericBeforeProfile?.canonicalPayload,
+          cartAttributesSnapshot: canonicalBeforeProfile?.lineItemProperties || genericBeforeProfile?.lineItemAttributes,
           preferences,
           jacket: result.jacketSpecs,
           trouser: result.trouserSpecs,
@@ -624,28 +767,58 @@ function FitConfiguratorContent() {
       const clientTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
       const clientLocale = Intl.DateTimeFormat().resolvedOptions().locale || 'en-US';
 
-      const canonicalAfterProfile = buildCanonicalTrouserMtmPayload({
-        email: userEmail,
-        fitPreference: result.label,
-        jacketSize: result.jacketSize,
-        trouserSize: result.trouserSize,
-        appointmentDate: selectedDate,
-        appointmentTime: appointmentTimeValue,
-        fitProfileId: profile.id,
-        attributes: {
-          ...attributes,
-          onLocationAddress,
-          weddingDate,
-          bridalPartyCount,
-          clientTimeZone,
-          clientLocale,
-          ...modalData,
-        },
-        preferences,
-        jacketSpecs: result.jacketSpecs,
-        trouserSpecs: result.trouserSpecs,
-        trouserDesign: trouserDesignSnapshot,
-      });
+      const canonicalAfterProfile =
+        activeMtmCategory === 'trouser'
+          ? buildCanonicalTrouserMtmPayload({
+              email: userEmail,
+              fitPreference: result.label,
+              jacketSize: result.jacketSize,
+              trouserSize: result.trouserSize,
+              appointmentDate: selectedDate,
+              appointmentTime: appointmentTimeValue,
+              fitProfileId: profile.id,
+              attributes: {
+                ...attributes,
+                onLocationAddress,
+                weddingDate,
+                bridalPartyCount,
+                clientTimeZone,
+                clientLocale,
+                ...modalData,
+              },
+              preferences,
+              jacketSpecs: result.jacketSpecs,
+              trouserSpecs: result.trouserSpecs,
+              trouserDesign: trouserDesignSnapshot,
+            })
+          : null;
+
+      const genericAfterProfile =
+        activeCategorySnapshot
+          ? buildGenericCategoryCartPayload({
+              category: activeCategorySnapshot.category,
+              optionSet: activeCategorySnapshot.optionSet,
+              optionSetVersion: activeCategorySnapshot.optionSetVersion,
+              selections: activeCategorySnapshot.selections,
+              designUpcharge: activeCategorySnapshot.pricing.total,
+              fitProfileId: profile.id,
+              fabricId: activeCategorySnapshot.fabricId,
+              fitGateVersion: activeCategorySnapshot.optionSetVersion,
+              email: userEmail,
+              fitPreference: result.label,
+              appointmentDate: selectedDate,
+              appointmentTime: appointmentTimeValue,
+              attributes: {
+                ...attributes,
+                onLocationAddress,
+                weddingDate,
+                bridalPartyCount,
+                clientTimeZone,
+                clientLocale,
+                ...modalData,
+              },
+            })
+          : null;
 
       document.cookie = `fit_profile_id=${profile.id}; path=/; max-age=31536000`;
 
@@ -667,13 +840,14 @@ function FitConfiguratorContent() {
             ...modalData,
           },
           trouserDesign: trouserDesignSnapshot,
-          mtmCanonical: canonicalAfterProfile,
-          cartAttributesSnapshot: canonicalAfterProfile.lineItemProperties,
+          categoryDesign: activeCategorySnapshot,
+          mtmCanonical: canonicalAfterProfile || genericAfterProfile?.canonicalPayload,
+          cartAttributesSnapshot: canonicalAfterProfile?.lineItemProperties || genericAfterProfile?.lineItemAttributes,
           preferences,
           jacket: result.jacketSpecs,
           trouser: result.trouserSpecs,
         },
-        cartAttributes: canonicalAfterProfile.lineItemProperties,
+        cartAttributes: canonicalAfterProfile?.lineItemProperties || genericAfterProfile?.lineItemAttributes,
         fitProfileId: profile.id,
         bookingId: profile.id,
       };
@@ -759,15 +933,22 @@ function FitConfiguratorContent() {
         }
       }
 
-      // Attempt to add configured trouser to Shopify cart with full MTM metadata
+      // Attempt to add configured MTM item to Shopify cart with full metadata
       const variantId = searchParams.get('variantId');
-      if (variantId && canonicalAfterProfile) {
+      if (variantId && (canonicalAfterProfile || genericAfterProfile)) {
         try {
-          const cartResult = await addTrouserToCart({
-            variantId,
-            quantity: 1,
-            canonicalPayload: canonicalAfterProfile,
-          });
+          const cartResult =
+            activeMtmCategory === 'trouser' && canonicalAfterProfile
+              ? await addTrouserToCart({
+                  variantId,
+                  quantity: 1,
+                  canonicalPayload: canonicalAfterProfile,
+                })
+              : await addMtmItemToCart({
+                  variantId,
+                  quantity: 1,
+                  customAttributes: genericAfterProfile?.lineItemAttributes || {},
+                });
 
           if (cartResult.ok) {
             // Success: redirect to cart or checkout
@@ -837,23 +1018,34 @@ function FitConfiguratorContent() {
         </div>
 
         <div className="p-8 md:p-12">
-          {trouserDesignSnapshot && (
+          {(trouserDesignSnapshot || categoryDesignSnapshot) && (
             <div className="mb-6 rounded-xl border border-[#826300]/20 bg-[#F8F5ED] p-5">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#826300]">Your Trouser Design</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#826300]">
+                    Your {activeMtmCategory ? `${activeMtmCategory} ` : ''}Design
+                  </p>
                   <p className="text-sm text-zinc-600">
-                    Source: <span className="font-semibold text-zinc-800">{trouserDesignSource}</span> · Option Set{' '}
-                    <span className="font-semibold text-zinc-800">{trouserDesignSnapshot.optionSetVersion}</span>
+                    Source:{' '}
+                    <span className="font-semibold text-zinc-800">
+                      {trouserDesignSnapshot ? trouserDesignSource : categoryDesignSource}
+                    </span>{' '}
+                    · Option Set{' '}
+                    <span className="font-semibold text-zinc-800">
+                      {trouserDesignSnapshot
+                        ? trouserDesignSnapshot.optionSetVersion
+                        : categoryDesignSnapshot?.optionSetVersion}
+                    </span>
                   </p>
                 </div>
                 <p className="text-xs font-semibold text-zinc-700">
-                  Design Upcharge: €{trouserDesignSnapshot.pricing.total.toFixed(2)}
+                  Design Upcharge: €
+                  {(trouserDesignSnapshot?.pricing.total ?? categoryDesignSnapshot?.pricing.total ?? 0).toFixed(2)}
                 </p>
               </div>
 
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {Object.entries(trouserDesignSnapshot.selections)
+                {Object.entries(trouserDesignSnapshot?.selections || categoryDesignSnapshot?.selections || {})
                   .slice(0, 6)
                   .map(([key, value]) => (
                     <div key={key} className="rounded-lg bg-white px-3 py-2 text-xs text-zinc-700">

@@ -58,6 +58,12 @@ Implemented:
 - Shared reusable UI: `GenericMtmConfigurator`
 - Category option models created in `types/*Options.ts`
 - MTM category navigation links surfaced on `/shop`
+- Phase 3 handoff and commerce wiring:
+	- Category design handoff storage + query handoff to `/configure-fit`
+	- Category-aware fit intake handoff resolution
+	- Generic MTM cart bridge to `/api/cart/add-mtm-item`
+	- Canonical MTM payload and line-item attribute construction for non-trouser categories
+	- End-to-end category ordering from configurator -> fit -> cart -> checkout redirect
 
 Validation evidence:
 - `npm run qa:predeploy` passing (contracts, lint with warnings only, build)

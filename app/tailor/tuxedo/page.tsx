@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import SuitConfiguratorController from '@/components/SuitConfiguratorController';
 
 export const dynamic = 'force-dynamic';
@@ -11,11 +12,13 @@ export default function TuxedoConfiguratorPage() {
           Back to Shop
         </Link>
       </div>
-      <SuitConfiguratorController
-        initialVariant="tuxedo"
-        showVariantSelector={false}
-        basePrice={899}
-      />
+      <Suspense fallback={<div className="mx-auto max-w-4xl px-4 py-8 text-sm text-zinc-500">Loading configurator...</div>}>
+        <SuitConfiguratorController
+          initialVariant="tuxedo"
+          showVariantSelector={false}
+          basePrice={899}
+        />
+      </Suspense>
     </main>
   );
 }

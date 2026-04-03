@@ -1,7 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { Suspense } from 'react';
 import SuitConfiguratorController from '@/components/SuitConfiguratorController';
+
+export const dynamic = 'force-dynamic';
 
 export default function SuitPage() {
   return (
@@ -25,7 +28,9 @@ export default function SuitPage() {
 
         {/* Configurator */}
         <div className="max-w-4xl mx-auto">
-          <SuitConfiguratorController />
+          <Suspense fallback={<div className="p-6 text-sm text-zinc-500">Loading configurator...</div>}>
+            <SuitConfiguratorController />
+          </Suspense>
         </div>
       </div>
     </div>

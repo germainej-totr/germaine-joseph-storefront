@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import GenericMtmConfigurator from '@/components/GenericMtmConfigurator';
 import FabricSelector from '@/components/FabricSelector';
 import type { SuitVariant } from '@/types/suitOptions';
@@ -17,6 +17,7 @@ import {
   saveDraftSuitDesign,
 } from '@/lib/suit/SuitDesignPersistence';
 import type { SuitSelections } from '@/lib/suit/SuitOptionVisibility';
+import { saveCategoryDesignHandoff } from '@/lib/mtm/CategoryFitHandoffStorage';
 
 export interface SuitConfiguratorControllerProps {
   initialVariant?: SuitVariant;
@@ -45,6 +46,7 @@ export default function SuitConfiguratorController({
   onDesignComplete,
 }: SuitConfiguratorControllerProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [variant, setVariant] = useState<SuitVariant>(initialVariant);
   const [selectedFabric, setSelectedFabric] = useState<Fabric | null>(() => {
     if (!fabrics) return null;
@@ -121,10 +123,56 @@ export default function SuitConfiguratorController({
       });
     } else {
       // Default: Save design and continue to fit
+      const cleanedSelections = Object.fromEntries(
+        Object.entries(selections).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && !!entry[1]),
+      );
+
+      saveCategoryDesignHandoff({
+        category: 'suit',
+        optionSet: optionSet.id,
+        optionSetVersion: optionSet.version,
+        selections: cleanedSelections,
+        pricing: {
+          total: pricing.total,
+          breakdown: pricing.breakdown.map((item) => ({
+            key: item.key,
+            label: `${item.optionLabel}: ${item.choiceLabel}`,
+            amount: item.amount,
+          })),
+        },
+        fabricId: selectedFabric?.id,
+        createdAt: new Date().toISOString(),
+      });
+
       saveDraftSuitDesign(variant, selections, selectedFabric?.id);
-      router.push(continueTo);
+
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('category', 'suit');
+      params.set('optionSet', optionSet.id);
+      params.set('optionSetVersion', optionSet.version);
+      params.set('mtmSelections', JSON.stringify(cleanedSelections));
+      params.set('designUpcharge', String(pricing.total));
+      if (selectedFabric?.id) {
+        params.set('fabricId', selectedFabric.id);
+      }
+
+      router.push(`${continueTo}?${params.toString()}`);
     }
-  }, [variant, selections, selectedFabric?.id, totalPrice, validationResult, onDesignComplete, continueTo, router]);
+  }, [
+    continueTo,
+    onDesignComplete,
+    optionSet.id,
+    optionSet.version,
+    pricing.breakdown,
+    pricing.total,
+    router,
+    searchParams,
+    selectedFabric,
+    selections,
+    totalPrice,
+    validationResult,
+    variant,
+  ]);
 
   const suitVariants: { value: SuitVariant; label: string; description: string }[] = [
     { value: 'business', label: 'Business Suit', description: 'Professional and versatile' },

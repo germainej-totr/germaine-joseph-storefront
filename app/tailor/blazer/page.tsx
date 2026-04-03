@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import CategoryConfiguratorController from '@/components/CategoryConfiguratorController';
 import { blazerOptionSet } from '@/types/blazerOptions';
 
@@ -12,13 +13,15 @@ export default function BlazerConfiguratorPage() {
           Back to Shop
         </Link>
       </div>
-      <CategoryConfiguratorController
-        optionSet={blazerOptionSet}
-        title="Blazer Configurator"
-        intro="Build your custom blazer for business, smart casual, and occasion wear."
-        basePrice={549}
-        draftStorageKey="gj:draft:blazer:design"
-      />
+      <Suspense fallback={<div className="mx-auto max-w-4xl px-4 py-8 text-sm text-zinc-500">Loading configurator...</div>}>
+        <CategoryConfiguratorController
+          optionSet={blazerOptionSet}
+          title="Blazer Configurator"
+          intro="Build your custom blazer for business, smart casual, and occasion wear."
+          basePrice={549}
+          draftStorageKey="gj:draft:blazer:design"
+        />
+      </Suspense>
     </main>
   );
 }

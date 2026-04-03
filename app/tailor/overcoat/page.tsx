@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import CategoryConfiguratorController from '@/components/CategoryConfiguratorController';
 import { overcoatOptionSet } from '@/types/overcoatOptions';
 
@@ -12,13 +13,15 @@ export default function OvercoatConfiguratorPage() {
           Back to Shop
         </Link>
       </div>
-      <CategoryConfiguratorController
-        optionSet={overcoatOptionSet}
-        title="Overcoat Configurator"
-        intro="Craft your overcoat silhouette, length, closure, and winter construction."
-        basePrice={749}
-        draftStorageKey="gj:draft:overcoat:design"
-      />
+      <Suspense fallback={<div className="mx-auto max-w-4xl px-4 py-8 text-sm text-zinc-500">Loading configurator...</div>}>
+        <CategoryConfiguratorController
+          optionSet={overcoatOptionSet}
+          title="Overcoat Configurator"
+          intro="Craft your overcoat silhouette, length, closure, and winter construction."
+          basePrice={749}
+          draftStorageKey="gj:draft:overcoat:design"
+        />
+      </Suspense>
     </main>
   );
 }

@@ -2,10 +2,12 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import GenericMtmConfigurator, { type GenericMtmSelections } from '@/components/GenericMtmConfigurator';
 import FabricSelector from '@/components/FabricSelector';
 import type { Fabric } from '@/types/fabric';
 import type { MtmOptionSet } from '@/types/trouserOptions';
+import { saveCategoryDesignHandoff } from '@/lib/mtm/CategoryFitHandoffStorage';
 
 interface DraftCategoryDesign {
   selections: GenericMtmSelections;
@@ -59,6 +61,8 @@ export default function CategoryConfiguratorController({
   fabrics,
 }: CategoryConfiguratorControllerProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [designUpcharge, setDesignUpcharge] = useState(0);
 
   const [selectedFabric, setSelectedFabric] = useState<Fabric | null>(() => {
     if (!fabrics?.length || typeof window === 'undefined') return null;
@@ -101,17 +105,58 @@ export default function CategoryConfiguratorController({
   );
 
   const handleChange = useCallback(
-    (next: GenericMtmSelections) => {
+    (next: GenericMtmSelections, nextUpcharge: number) => {
       setSelections(next);
+      setDesignUpcharge(nextUpcharge);
       persistDraft(next, selectedFabric);
     },
     [persistDraft, selectedFabric],
   );
 
   const handleComplete = useCallback(() => {
+    const cleanedSelections = Object.fromEntries(
+      Object.entries(selections).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && !!entry[1]),
+    );
+
+    const handoff = {
+      category: optionSet.category,
+      optionSet: optionSet.id,
+      optionSetVersion: optionSet.version,
+      selections: cleanedSelections,
+      pricing: {
+        total: designUpcharge,
+        breakdown: [],
+      },
+      fabricId: selectedFabric?.id,
+      createdAt: new Date().toISOString(),
+    };
+
+    saveCategoryDesignHandoff(handoff);
     persistDraft(selections, selectedFabric);
-    router.push(continueTo);
-  }, [continueTo, persistDraft, router, selections, selectedFabric]);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('category', optionSet.category);
+    params.set('optionSet', optionSet.id);
+    params.set('optionSetVersion', optionSet.version);
+    params.set('mtmSelections', JSON.stringify(cleanedSelections));
+    params.set('designUpcharge', String(designUpcharge));
+    if (selectedFabric?.id) {
+      params.set('fabricId', selectedFabric.id);
+    }
+
+    router.push(`${continueTo}?${params.toString()}`);
+  }, [
+    continueTo,
+    designUpcharge,
+    optionSet.category,
+    optionSet.id,
+    optionSet.version,
+    persistDraft,
+    router,
+    searchParams,
+    selections,
+    selectedFabric,
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-8">
