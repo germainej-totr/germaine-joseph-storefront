@@ -64,6 +64,14 @@ LAUNCH_ALLOW_MISSING_ENV=true npm run qa:launch-readiness
 Strict mode runs migration doctor gate first (`db:migrate:doctor:gate`) and fails fast when Prisma doctor JSON reports `ok: false`.
 When used in CI (for example GitHub Actions), set a `DATABASE_URL` repository secret so Prisma connectivity and migrate-status checks can run.
 
+If `STAGING_BASE_URL` is present, strict mode also runs the optional MTM category funnel staging smoke automatically:
+
+```bash
+npm run qa:mtm-funnel-category-smoke:optional
+```
+
+This posts sample `gjm_mtm_cart_add` and `gjm_mtm_checkout_start` analytics events for suit, blazer, shirt, overcoat, and waistcoat/vest categories and verifies category-specific fields are present before launch. If `STAGING_BASE_URL` is not set, the step skips cleanly.
+
 ## Booking Lifecycle Events (Klaviyo)
 
 Booking events are emitted on confirmation/reschedule/cancel with safe fire-and-forget behavior.

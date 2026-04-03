@@ -30,5 +30,6 @@ Use this before promoting a branch to production.
 ## 5) Analytics and Monitoring Baseline
 
 - Confirm analytics events are ingesting (`npm run verify:analytics`).
+- If `STAGING_BASE_URL` is available, run `npm run qa:mtm-funnel-category-smoke:optional` to verify category-specific MTM funnel payloads for suit, blazer, shirt, overcoat, and waistcoat/vest before release.
 - Confirm dashboards are seeded (`npm run seed:posthog-dashboards`).
 - Confirm error tracking dashboard and alert channel are reachable.
