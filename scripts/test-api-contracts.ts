@@ -23,6 +23,11 @@ import {
   MTM_CANONICAL_PAYLOAD_STRICT_SCHEMA,
 } from '../lib/mtm/MtmCanonicalSchema.ts';
 import {
+  parseCategoryHandoffFromQuery,
+} from '../lib/mtm/CategoryFitHandoffStorage.ts';
+import { buildCategoryCartPayload } from '../lib/mtm/CategoryCartPayloadBuilder.ts';
+import { deriveCategoryAnalyticsFields } from '../lib/analytics/mtmCategoryAnalytics.ts';
+import {
   validateCanonicalPayload,
   validateCanonicalPayloadForPersistence,
   validatePayloadWithVersionCheck,
@@ -241,6 +246,99 @@ assertInvalid(
     customAttributes: {},
   }),
 );
+
+// Phase 3.1: category handoff parsing regression
+const query = new URLSearchParams({
+  category: 'blazer',
+  optionSet: 'blazer-core-v1',
+  optionSetVersion: 'v1',
+  mtmSelections: JSON.stringify({
+    fit: 'tailored',
+    lapel_type: 'peak',
+    pocket_style: 'flap',
+  }),
+  designUpcharge: '1400',
+  fabricId: 'fabric_001',
+});
+
+const handoff = parseCategoryHandoffFromQuery(query);
+assert.ok(handoff, 'category handoff should parse from query');
+assert.equal(handoff?.category, 'blazer', 'category handoff category should be blazer');
+assert.equal(handoff?.optionSet, 'blazer-core-v1', 'category handoff should keep option set');
+assert.equal(handoff?.pricing.total, 1400, 'category handoff should parse numeric upcharge');
+assert.equal(handoff?.selections.fit, 'tailored', 'category handoff should preserve selections');
+
+const invalidQuery = new URLSearchParams({
+  category: 'blazer',
+  optionSet: 'blazer-core-v1',
+  optionSetVersion: 'v1',
+  mtmSelections: 'not-json',
+});
+const invalidHandoff = parseCategoryHandoffFromQuery(invalidQuery);
+assert.equal(invalidHandoff, null, 'invalid mtmSelections should return null handoff');
+
+// Phase 3.1: generic cart payload shape regression
+const categoryPayload = buildCategoryCartPayload({
+  category: 'shirt',
+  optionSet: 'shirt-core-v1',
+  optionSetVersion: 'v1',
+  selections: {
+    fit: 'tailored',
+    collar: 'cutaway',
+    cuff: 'double_french',
+  },
+  designUpcharge: 2300,
+  fitProfileId: 'fit_123',
+  fitGateVersion: 'v1',
+  fabricId: 'fabric_abc',
+  email: 'customer@example.com',
+  fitPreference: 'regular',
+  appointmentDate: '2026-04-03',
+  appointmentTime: '10:00 AM',
+  attributes: {
+    chest: '98',
+    waist: '82',
+    height: '182',
+  },
+});
+
+assert.equal(
+  categoryPayload.lineItemAttributes.gjm_mtm_category,
+  'shirt',
+  'generic payload should include mtm category attribute',
+);
+assert.equal(
+  categoryPayload.lineItemAttributes.gjm_mtm_option_set,
+  'shirt-core-v1',
+  'generic payload should include option set attribute',
+);
+assert.equal(
+  categoryPayload.lineItemAttributes.gjm_fit_profile_id,
+  'fit_123',
+  'generic payload should include fit profile id',
+);
+assert.ok(
+  categoryPayload.lineItemAttributes.gjm_mtm_canonical.includes('"category":"shirt"'),
+  'generic payload canonical blob should include category',
+);
+
+// Phase 3.1: category analytics field mapping regression
+const blazerAnalytics = deriveCategoryAnalyticsFields('blazer', {
+  gjm_mtm_option_set: 'blazer-core-v1',
+  gjm_mtm_option_set_version: 'v1',
+  gjm_design_pricing_total: '1400',
+  gjm_blazer_selections: JSON.stringify({
+    fit: 'tailored',
+    lapel_type: 'peak',
+    buttoning: 'single_two',
+    pocket_style: 'flap',
+  }),
+});
+
+assert.equal(blazerAnalytics.category, 'blazer', 'blazer analytics should preserve category');
+assert.equal(blazerAnalytics.blazer_fit, 'tailored', 'blazer analytics should map fit');
+assert.equal(blazerAnalytics.blazer_lapel_type, 'peak', 'blazer analytics should map lapel type');
+assert.equal(blazerAnalytics.category_design_upcharge, '1400', 'blazer analytics should map design upcharge');
 
 assertValid(
   'booking service type catalog valid payload',

@@ -64,6 +64,13 @@ Implemented:
 	- Generic MTM cart bridge to `/api/cart/add-mtm-item`
 	- Canonical MTM payload and line-item attribute construction for non-trouser categories
 	- End-to-end category ordering from configurator -> fit -> cart -> checkout redirect
+- Phase 3.1 analytics + regression hardening:
+	- Category-specific analytics field mapping for suit, blazer, shirt, overcoat, and waistcoat cart events
+	- Shared category cart payload builder extracted for deterministic payload shape
+	- Regression tests added for:
+		- Category handoff query parsing
+		- Generic category cart payload shape
+		- Category analytics field derivation
 
 Validation evidence:
 - `npm run qa:predeploy` passing (contracts, lint with warnings only, build)

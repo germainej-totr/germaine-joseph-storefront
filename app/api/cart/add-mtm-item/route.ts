@@ -10,6 +10,7 @@ import {
 import { normalizeGjmLineItemAttributes, toShopifyAttributeInput } from '@/lib/shopify/gjmLineItemAttributes';
 import { ADD_MTM_ITEM_REQUEST_SCHEMA, type AddMtmItemRequest } from '@/lib/contracts/apiSchemas';
 import { captureMtmFunnelEvent } from '@/lib/analytics/captureMtmFunnelEvent';
+import { deriveCategoryAnalyticsFields } from '@/lib/analytics/mtmCategoryAnalytics';
 
 function isRecoverableCartError(error: unknown): boolean {
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
@@ -163,6 +164,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       normalizedAttributes.gjm_mtm_category ||
       normalizedAttributes.mtm_category ||
       'mtm';
+    const categoryFields = deriveCategoryAnalyticsFields(mtmCategory, normalizedAttributes);
 
     captureMtmFunnelEvent({
       event_name: 'gjm_mtm_cart_add',
@@ -173,6 +175,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       entry_path: normalizedAttributes.gjm_fit_profile_id ? 'saved_fit' : 'full_mtm',
       funnel_step: 'cart_add',
       source: 'api/cart/add-mtm-item',
+      properties: categoryFields,
     }).catch((err) => console.error('gjm_mtm_cart_add event emit failed:', err));
 
     if (cart.checkoutUrl) {
@@ -185,6 +188,7 @@ export async function POST(req: Request): Promise<NextResponse> {
         entry_path: normalizedAttributes.gjm_fit_profile_id ? 'saved_fit' : 'full_mtm',
         funnel_step: 'checkout_start',
         source: 'api/cart/add-mtm-item',
+        properties: categoryFields,
       }).catch((err) => console.error('gjm_mtm_checkout_start event emit failed:', err));
     }
 
