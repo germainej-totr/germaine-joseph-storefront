@@ -71,6 +71,15 @@ Implemented:
 		- Category handoff query parsing
 		- Generic category cart payload shape
 		- Category analytics field derivation
+- Phase 3.2 observability smoke gate:
+	- Added category funnel smoke script:
+		- `scripts/posthog/staging-mtm-funnel-category-smoke.mjs`
+	- Added npm command:
+		- `npm run qa:mtm-funnel-category-smoke`
+	- Script behavior:
+		- Posts sample `gjm_mtm_cart_add` and `gjm_mtm_checkout_start` events for suit, blazer, shirt, overcoat, and vest categories
+		- Verifies category-specific required analytics fields before posting
+		- Supports dry-run validation mode (`--dry-run`) for prelaunch payload checks without network posting
 
 Validation evidence:
 - `npm run qa:predeploy` passing (contracts, lint with warnings only, build)

@@ -28,6 +28,7 @@
     "qa:runtime-smoke": "node scripts/runtime-smoke.mjs",
     "qa:launch-readiness": "node scripts/qa-launch-readiness.mjs",
     "qa:mtm-admin-prod-smoke": "ts-node --esm scripts/qa-mtm-admin-prod-smoke.ts",
+    "qa:mtm-funnel-category-smoke": "node scripts/posthog/staging-mtm-funnel-category-smoke.mjs",
     "qa:mtm-ui-checklist": "node scripts/posthog/mtm-ui-path-qa.mjs checklist",
     "qa:mtm-ui-init-report": "node scripts/posthog/mtm-ui-path-qa.mjs init-report",
     "verify:analytics": "node scripts/verifyAnalyticsPipeline.mjs",
