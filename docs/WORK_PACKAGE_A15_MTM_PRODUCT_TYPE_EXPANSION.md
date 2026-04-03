@@ -45,4 +45,25 @@ Support a multi-category MTM catalog with consistent configurator, validation, p
 
 ## Status
 
-Specified and ready for implementation.
+Phase implementation in progress and validated in-repo.
+
+Implemented:
+- Suit configurator variants: business, wedding, casual, tuxedo
+- Dedicated category configurators and routes for:
+	- Blazers (`/tailor/blazer`)
+	- Shirts (`/tailor/shirt`)
+	- Overcoats (`/tailor/overcoat`)
+	- Waistcoats (`/tailor/waistcoat`)
+- Shared reusable controller: `CategoryConfiguratorController`
+- Shared reusable UI: `GenericMtmConfigurator`
+- Category option models created in `types/*Options.ts`
+- MTM category navigation links surfaced on `/shop`
+
+Validation evidence:
+- `npm run qa:predeploy` passing (contracts, lint with warnings only, build)
+- Build manifest includes new routes:
+	- `/tailor/blazer`
+	- `/tailor/shirt`
+	- `/tailor/overcoat`
+	- `/tailor/waistcoat`
+	- `/tailor/tuxedo`

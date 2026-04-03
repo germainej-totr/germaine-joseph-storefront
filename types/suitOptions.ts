@@ -481,12 +481,132 @@ export const casualSuitOptionSet: MtmOptionSet = {
 };
 
 /**
+ * Tuxedo MTM option set
+ * Formal black-tie oriented configuration.
+ */
+export const tuxedoSuitOptionSet: MtmOptionSet = {
+  id: 'suit-tuxedo-v1',
+  handle: 'suit-tuxedo-v1',
+  title: 'Tuxedo Core v1',
+  category: 'suit',
+  version: 'v1',
+  options: [
+    {
+      key: 'jacket_fit',
+      label: 'Jacket Fit',
+      type: 'radio',
+      uiHint: 'cards',
+      required: true,
+      sortOrder: 10,
+      section: 'design',
+      choices: [
+        { value: 'slim_fit', label: 'Slim Fit', priceDelta: 0 },
+        { value: 'regular_fit', label: 'Regular Fit', priceDelta: 0 },
+        { value: 'classic_fit', label: 'Classic Fit', priceDelta: 0 },
+      ],
+    },
+    {
+      key: 'jacket_buttoning',
+      label: 'Jacket Buttoning',
+      type: 'radio',
+      uiHint: 'buttons',
+      required: true,
+      sortOrder: 20,
+      section: 'design',
+      choices: [
+        { value: 'one_button', label: 'One Button', priceDelta: 0 },
+        { value: 'double_breasted', label: 'Double Breasted', priceDelta: 3000 },
+      ],
+    },
+    {
+      key: 'lapel_type',
+      label: 'Lapel Type',
+      type: 'radio',
+      uiHint: 'cards',
+      required: true,
+      sortOrder: 30,
+      section: 'design',
+      choices: [
+        { value: 'peak_lapel', label: 'Peak Lapel', priceDelta: 0 },
+        { value: 'shawl_collar', label: 'Shawl Collar', priceDelta: 1500 },
+      ],
+    },
+    {
+      key: 'satin_details',
+      label: 'Satin Details',
+      type: 'radio',
+      uiHint: 'buttons',
+      required: true,
+      sortOrder: 40,
+      section: 'formal_details',
+      choices: [
+        { value: 'standard_satin', label: 'Standard Satin', priceDelta: 0 },
+        { value: 'wide_satin', label: 'Wide Satin Facing', priceDelta: 1200 },
+      ],
+    },
+    {
+      key: 'trouser_braid',
+      label: 'Trouser Braid',
+      type: 'radio',
+      uiHint: 'buttons',
+      required: true,
+      sortOrder: 50,
+      section: 'formal_details',
+      choices: [
+        { value: 'single_braid', label: 'Single Braid', priceDelta: 0 },
+        { value: 'double_braid', label: 'Double Braid', priceDelta: 1000 },
+      ],
+    },
+    {
+      key: 'waist_finish',
+      label: 'Trouser Waist Finish',
+      type: 'radio',
+      uiHint: 'buttons',
+      required: true,
+      sortOrder: 60,
+      section: 'construction',
+      choices: [
+        { value: 'side_adjusters', label: 'Side Adjusters', priceDelta: 0 },
+        { value: 'suspender_buttons', label: 'Suspender Buttons', priceDelta: 900 },
+      ],
+    },
+    {
+      key: 'lining',
+      label: 'Jacket Lining',
+      type: 'radio',
+      uiHint: 'buttons',
+      required: true,
+      sortOrder: 70,
+      section: 'construction',
+      choices: [
+        { value: 'full_lining', label: 'Full Lining', priceDelta: 0 },
+        { value: 'half_lining', label: 'Half Lining', priceDelta: 1000 },
+      ],
+    },
+    {
+      key: 'button_finish',
+      label: 'Button Finish',
+      type: 'select',
+      uiHint: 'dropdown',
+      required: true,
+      sortOrder: 80,
+      section: 'finish',
+      choices: [
+        { value: 'satin_covered', label: 'Satin Covered', priceDelta: 0 },
+        { value: 'grosgrain_covered', label: 'Grosgrain Covered', priceDelta: 1200 },
+      ],
+    },
+  ],
+};
+
+/**
  * Re-export all suit option sets for use in controllers
  */
 export const allSuitOptionSets = {
   business: businessSuitOptionSet,
   wedding: weddingSuitOptionSet,
   casual: casualSuitOptionSet,
+  tuxedo: tuxedoSuitOptionSet,
 } as const;
 
 export type SuitVariant = keyof typeof allSuitOptionSets;

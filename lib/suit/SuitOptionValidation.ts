@@ -77,6 +77,13 @@ export function validateSuitSelections(
     }
   }
 
+  // Tuxedo specific rules
+  if (optionSet.id === 'suit-tuxedo-v1') {
+    if (selections.lapel_type === 'notch_lapel') {
+      invalidCombinationRules.push('notch_lapel_not_valid_for_tuxedo');
+    }
+  }
+
   const isValid =
     missingRequiredKeys.length === 0 &&
     invalidValueKeys.length === 0 &&

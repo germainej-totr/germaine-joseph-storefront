@@ -20,6 +20,7 @@ import type { SuitSelections } from '@/lib/suit/SuitOptionVisibility';
 
 export interface SuitConfiguratorControllerProps {
   initialVariant?: SuitVariant;
+  showVariantSelector?: boolean;
   initialSelections?: SuitSelections;
   basePrice?: number;
   continueTo?: string;
@@ -36,6 +37,7 @@ export interface SuitConfiguratorControllerProps {
 
 export default function SuitConfiguratorController({
   initialVariant = 'business',
+  showVariantSelector = true,
   initialSelections,
   basePrice = 799,
   continueTo = '/configure-fit',
@@ -128,33 +130,36 @@ export default function SuitConfiguratorController({
     { value: 'business', label: 'Business Suit', description: 'Professional and versatile' },
     { value: 'wedding', label: 'Wedding Suit', description: 'Formal and elegant' },
     { value: 'casual', label: 'Casual Suit', description: 'Relaxed and modern' },
+    { value: 'tuxedo', label: 'Tuxedo', description: 'Black-tie and evening formal' },
   ];
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-6">
       {/* Variant selector */}
-      <div className="mb-12">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Choose Your Suit Type</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {suitVariants.map(({ value, label, description }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => handleVariantChange(value)}
-              className={[
-                'relative flex flex-col gap-2 p-4 rounded-xl border-2 text-left transition-all',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#826300]',
-                variant === value
-                  ? 'border-[#826300] bg-amber-50'
-                  : 'border-gray-200 hover:border-gray-400 hover:bg-gray-50',
-              ].join(' ')}
-            >
-              <span className="font-semibold text-gray-900">{label}</span>
-              <span className="text-xs text-gray-600">{description}</span>
-            </button>
-          ))}
+      {showVariantSelector && (
+        <div className="mb-12">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Choose Your Suit Type</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {suitVariants.map(({ value, label, description }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => handleVariantChange(value)}
+                className={[
+                  'relative flex flex-col gap-2 p-4 rounded-xl border-2 text-left transition-all',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#826300]',
+                  variant === value
+                    ? 'border-[#826300] bg-amber-50'
+                    : 'border-gray-200 hover:border-gray-400 hover:bg-gray-50',
+                ].join(' ')}
+              >
+                <span className="font-semibold text-gray-900">{label}</span>
+                <span className="text-xs text-gray-600">{description}</span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Fabric selector (if fabrics provided) */}
       {fabrics && fabrics.length > 0 && (

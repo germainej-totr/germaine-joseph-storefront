@@ -55,5 +55,17 @@ export function applySuitStyleDefaults(
     defaults.button_finish = defaults.button_finish ?? 'standard_buttons';
   }
 
+  // Tuxedo defaults
+  if (optionSet.id === 'suit-tuxedo-v1') {
+    defaults.jacket_fit = defaults.jacket_fit ?? 'regular_fit';
+    defaults.jacket_buttoning = defaults.jacket_buttoning ?? 'one_button';
+    defaults.lapel_type = defaults.lapel_type ?? 'peak_lapel';
+    defaults.satin_details = defaults.satin_details ?? 'standard_satin';
+    defaults.trouser_braid = defaults.trouser_braid ?? 'single_braid';
+    defaults.waist_finish = defaults.waist_finish ?? 'side_adjusters';
+    defaults.lining = defaults.lining ?? 'full_lining';
+    defaults.button_finish = defaults.button_finish ?? 'satin_covered';
+  }
+
   return defaults;
 }

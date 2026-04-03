@@ -115,6 +115,28 @@ export default async function ShopPage() {
           ))}
         </div>
 
+        <div className="mt-8 rounded-2xl border border-zinc-200 bg-white p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">MTM Categories</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[
+              { href: '/tailor/suit', label: 'Suits' },
+              { href: '/tailor/tuxedo', label: 'Tuxedos' },
+              { href: '/tailor/blazer', label: 'Blazers' },
+              { href: '/tailor/shirt', label: 'Shirts' },
+              { href: '/tailor/overcoat', label: 'Overcoats' },
+              { href: '/tailor/waistcoat', label: 'Waistcoats' },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-zinc-900 hover:text-zinc-900"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+
         <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {products.map((p) => (
             <Link
