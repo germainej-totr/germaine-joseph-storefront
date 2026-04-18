@@ -845,45 +845,52 @@ function FitConfiguratorContent() {
 
       const genericAfterProfile =
         activeCategorySnapshot
-            ? buildCategoryCartPayload({
-              category: activeCategorySnapshot.category,
-              optionSet: activeCategorySnapshot.optionSet,
-              optionSetVersion: activeCategorySnapshot.optionSetVersion,
-              selections: activeCategorySnapshot.selections,
-              designUpcharge: activeCategorySnapshot.pricing.total,
-              production:
-                activeCategorySnapshot.category === 'suit'
-                  ? activeSuitHandoff?.payload.production
-                  : undefined,
-              summary:
-                activeCategorySnapshot.category === 'suit'
-                  ? activeSuitSummary
-                  : undefined,
-              handoffSource:
-                activeCategorySnapshot.category === 'suit'
-                  ? activeSuitHandoff?.payload.source
-                  : undefined,
-              handoffStorageKey:
-                activeCategorySnapshot.category === 'suit'
-                  ? activeSuitHandoff?.key
-                  : undefined,
-              fitProfileId: profileId,
-              fabricId: activeCategorySnapshot.fabricId,
-              fitGateVersion: activeCategorySnapshot.optionSetVersion,
-              email: userEmail,
-              fitPreference: result.label,
-              appointmentDate: selectedDate,
-              appointmentTime: appointmentTimeValue,
-              attributes: {
-                ...attributes,
-                onLocationAddress,
-                weddingDate,
-                bridalPartyCount,
-                clientTimeZone,
-                clientLocale,
-                ...modalData,
-              },
-            })
+          ? (() => {
+              const categoryPayloadInput = {
+                category: activeCategorySnapshot.category,
+                optionSet: activeCategorySnapshot.optionSet,
+                optionSetVersion: activeCategorySnapshot.optionSetVersion,
+                selections: activeCategorySnapshot.selections,
+                designUpcharge: activeCategorySnapshot.pricing.total,
+                summary:
+                  activeCategorySnapshot.category === 'suit'
+                    ? activeSuitSummary
+                    : undefined,
+                handoffSource:
+                  activeCategorySnapshot.category === 'suit'
+                    ? activeSuitHandoff?.payload.source
+                    : undefined,
+                handoffStorageKey:
+                  activeCategorySnapshot.category === 'suit'
+                    ? activeSuitHandoff?.key
+                    : undefined,
+                fitProfileId: profileId,
+                fabricId: activeCategorySnapshot.fabricId,
+                fitGateVersion: activeCategorySnapshot.optionSetVersion,
+                email: userEmail,
+                fitPreference: result.label,
+                appointmentDate: selectedDate,
+                appointmentTime: appointmentTimeValue,
+                attributes: {
+                  ...attributes,
+                  onLocationAddress,
+                  weddingDate,
+                  bridalPartyCount,
+                  clientTimeZone,
+                  clientLocale,
+                  ...modalData,
+                },
+              };
+
+              if (activeCategorySnapshot.category === 'suit') {
+                (categoryPayloadInput as Record<string, unknown>).production =
+                  activeSuitHandoff?.payload.production;
+              }
+
+              return buildCategoryCartPayload(
+                categoryPayloadInput as Parameters<typeof buildCategoryCartPayload>[0],
+              );
+            })()
           : null;
 
       document.cookie = `fit_profile_id=${profileId}; path=/; max-age=31536000`;
