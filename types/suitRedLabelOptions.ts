@@ -1,5 +1,3 @@
-import { SUIT_RED_LABEL_V1_SEED } from '../scripts/data/suit-red-label-v1-seed.mjs';
-
 export type MtmUiHint =
   | 'cards'
   | 'buttons'
