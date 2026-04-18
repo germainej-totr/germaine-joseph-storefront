@@ -895,6 +895,9 @@ function FitConfiguratorContent() {
 
       document.cookie = `fit_profile_id=${profileId}; path=/; max-age=31536000`;
 
+      const bookingCartAttributes =
+        canonicalAfterProfile?.lineItemProperties || genericAfterProfile?.lineItemAttributes || {};
+
       const payload: UpdateBookingDetailsPayload = {
         email: userEmail,
         fitPreference: result.label,
@@ -915,12 +918,12 @@ function FitConfiguratorContent() {
           trouserDesign: trouserDesignSnapshot,
           categoryDesign: activeCategorySnapshot,
           mtmCanonical: canonicalAfterProfile || genericAfterProfile?.canonicalPayload,
-          cartAttributesSnapshot: canonicalAfterProfile?.lineItemProperties || genericAfterProfile?.lineItemAttributes,
+          cartAttributesSnapshot: bookingCartAttributes,
           preferences,
           jacket: result.jacketSpecs,
           trouser: result.trouserSpecs,
         },
-        cartAttributes: canonicalAfterProfile?.lineItemProperties || genericAfterProfile?.lineItemAttributes,
+        cartAttributes: bookingCartAttributes,
         fitProfileId: profileId,
         bookingId: profileId,
       };
