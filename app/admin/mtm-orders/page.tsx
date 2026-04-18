@@ -25,9 +25,8 @@ export default async function MtmOrdersPage() {
     let category = 'unknown';
     let customerEmail = spec.fitProfile?.email ?? 'unknown';
 
-    if (parsed.ok) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const summary = buildOrderReviewSummary(spec.id, parsed.data!);
+    if (parsed.ok && parsed.data) {
+      const summary = buildOrderReviewSummary(spec.id, parsed.data);
       readiness = summary.readiness;
       category = summary.category;
       customerEmail = summary.fit.email;

@@ -61,8 +61,27 @@ export default async function MtmOrderDetailPage({ params }: PageProps) {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const payload = parsed.data!;
+  const payload = parsed.data;
+  if (!payload) {
+    return (
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        <Link
+          href="/admin/mtm-orders"
+          className="text-sm text-[#826300] hover:underline mb-6 inline-block"
+        >
+          ← Back to MTM Orders
+        </Link>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h2 className="text-lg font-bold text-red-800 mb-2">Payload missing</h2>
+          <p className="text-sm text-red-700">
+            Canonical payload validation returned no payload data for order{' '}
+            <code className="font-mono">{id}</code>.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   const summary = buildOrderReviewSummary(spec.id, payload);
 
   // Build the fulfilment spec (enrich with fabric if available)
