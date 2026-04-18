@@ -10,13 +10,52 @@ import { useFitHandoff } from '@/lib/trouser/useFitHandoff';
 import { useCategoryFitHandoff } from '@/lib/mtm/useCategoryFitHandoff';
 import { buildCanonicalTrouserMtmPayload } from '@/lib/trouser/TrouserMtmPayload';
 import { addTrouserToCart } from '@/lib/shopify/ShopifyTrouserAddToCartBridge';
-import { addMtmItemToCart } from '@/lib/shopify/ShopifyMtmItemAddToCartBridge';
 import { resolvePostFitDestination } from '@/lib/fit/flow';
 import { trackFitFlowEvent } from '@/lib/analytics/trackFitFlowEvent';
 import { buildCategoryCartPayload } from '@/lib/mtm/CategoryCartPayloadBuilder';
+import {
+  updateFitProfile,
+  updateBookingDetails,
+  addSuitToCartBridge,
+  type UpdateFitProfilePayload,
+  type UpdateBookingDetailsPayload,
+} from '@/lib/fit/fitSaveThroughAdapters';
 
 type BlockMeasurements = Record<string, number>;
 type BlockSizeMap = Record<string, BlockMeasurements>;
+
+type SuitSelections = Record<string, string | string[] | undefined>;
+
+type SuitHandoffPayload = {
+  source: string;
+  category: 'suit';
+  optionSet: string;
+  optionSetVersion: string;
+  production: string;
+  selections: SuitSelections;
+  pricing?: {
+    total: number;
+    breakdown: Array<{
+      key: string;
+      label: string;
+      amount: number;
+    }>;
+  };
+  summary?: Record<string, string>;
+  validation?: {
+    isValid: boolean;
+    missingRequired: string[];
+    errors: string[];
+  };
+  savedAt?: string;
+  continuedAt?: string;
+};
+
+type ActiveSuitHandoff = {
+  key: string;
+  payload: SuitHandoffPayload;
+  timestamp: number;
+};
 
 interface FitComputationResult {
   jacketSize: number;
@@ -87,6 +126,68 @@ const timelineProductionDays: Record<string, number> = {
 };
 
 const logisticsDaysInternationalExpress = 7;
+
+const SUIT_BLACK_LABEL_HANDOFF_KEY = 'gjm_suit_black_label_handoff';
+const SUIT_RED_LABEL_HANDOFF_KEY = 'gjm_suit_red_label_handoff';
+
+function parseHandoffTimestamp(payload: SuitHandoffPayload): number {
+  const candidate = payload.continuedAt || payload.savedAt;
+  if (!candidate) return 0;
+
+  const parsed = Date.parse(candidate);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function safeReadSuitHandoff(storageKey: string): ActiveSuitHandoff | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(storageKey);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as SuitHandoffPayload;
+
+    if (
+      !parsed ||
+      parsed.category !== 'suit' ||
+      !parsed.optionSet ||
+      !parsed.production ||
+      !parsed.selections
+    ) {
+      return null;
+    }
+
+    return {
+      key: storageKey,
+      payload: parsed,
+      timestamp: parseHandoffTimestamp(parsed),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function resolveLatestSuitHandoff(): ActiveSuitHandoff | null {
+  const candidates = [
+    safeReadSuitHandoff(SUIT_BLACK_LABEL_HANDOFF_KEY),
+    safeReadSuitHandoff(SUIT_RED_LABEL_HANDOFF_KEY),
+  ].filter(Boolean) as ActiveSuitHandoff[];
+
+  if (candidates.length === 0) return null;
+
+  candidates.sort((a, b) => b.timestamp - a.timestamp);
+  return candidates[0];
+}
+
+function normalizeSuitSelections(input: SuitSelections): Record<string, string> {
+  const normalized: Record<string, string> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (typeof value === 'string' && value.trim()) {
+      normalized[key] = value;
+    }
+  }
+  return normalized;
+}
 
 const toDateOnly = (value: string) => {
   if (!value) return null;
@@ -219,7 +320,53 @@ function FitConfiguratorContent() {
     snapshot: categoryDesignSnapshot,
     source: categoryDesignSource,
   } = useCategoryFitHandoff(searchParams);
-  const activeMtmCategory = categoryDesignSnapshot?.category || (trouserDesignSnapshot ? 'trouser' : null);
+  const [activeSuitHandoff, setActiveSuitHandoff] = useState<ActiveSuitHandoff | null>(null);
+
+  useEffect(() => {
+    setActiveSuitHandoff(resolveLatestSuitHandoff());
+  }, []);
+
+  const resolvedCategoryDesignSnapshot = useMemo(() => {
+    if (categoryDesignSnapshot && categoryDesignSnapshot.category !== 'suit') {
+      return categoryDesignSnapshot;
+    }
+
+    if (!activeSuitHandoff) {
+      return categoryDesignSnapshot;
+    }
+
+    const normalizedSelections = normalizeSuitSelections(activeSuitHandoff.payload.selections);
+    if (!Object.keys(normalizedSelections).length) {
+      return categoryDesignSnapshot;
+    }
+
+    return {
+      category: 'suit' as const,
+      optionSet: activeSuitHandoff.payload.optionSet,
+      optionSetVersion: activeSuitHandoff.payload.optionSetVersion,
+      selections: normalizedSelections,
+      pricing: activeSuitHandoff.payload.pricing || {
+        total: 0,
+        breakdown: [],
+      },
+      createdAt:
+        activeSuitHandoff.payload.continuedAt ||
+        activeSuitHandoff.payload.savedAt ||
+        new Date().toISOString(),
+    };
+  }, [activeSuitHandoff, categoryDesignSnapshot]);
+
+  const resolvedCategoryDesignSourceLabel =
+    resolvedCategoryDesignSnapshot?.category === 'suit' && activeSuitHandoff
+      ? activeSuitHandoff.payload.source
+      : categoryDesignSource;
+
+  const activeSuitSummary = useMemo(
+    () => (activeSuitHandoff?.payload.summary ? activeSuitHandoff.payload.summary : {}),
+    [activeSuitHandoff],
+  );
+
+  const activeMtmCategory = resolvedCategoryDesignSnapshot?.category || (trouserDesignSnapshot ? 'trouser' : null);
   const [step, setStep] = useState(1);
   const [userEmail, setUserEmail] = useState('');
   const [isAutoFilled, setIsAutoFilled] = useState(false);
@@ -566,7 +713,7 @@ function FitConfiguratorContent() {
       const appointmentTimeValue = finalTime || selectedTime;
       const activeCategorySnapshot =
         activeMtmCategory && activeMtmCategory !== 'trouser'
-          ? categoryDesignSnapshot
+          ? resolvedCategoryDesignSnapshot
           : null;
 
       const canonicalBeforeProfile =
@@ -600,6 +747,22 @@ function FitConfiguratorContent() {
               optionSetVersion: activeCategorySnapshot.optionSetVersion,
               selections: activeCategorySnapshot.selections,
               designUpcharge: activeCategorySnapshot.pricing.total,
+              production:
+                activeCategorySnapshot.category === 'suit'
+                  ? activeSuitHandoff?.payload.production
+                  : undefined,
+              summary:
+                activeCategorySnapshot.category === 'suit'
+                  ? activeSuitSummary
+                  : undefined,
+              handoffSource:
+                activeCategorySnapshot.category === 'suit'
+                  ? activeSuitHandoff?.payload.source
+                  : undefined,
+              handoffStorageKey:
+                activeCategorySnapshot.category === 'suit'
+                  ? activeSuitHandoff?.key
+                  : undefined,
               fabricId: activeCategorySnapshot.fabricId,
               email: userEmail,
               fitPreference: result.label,
@@ -615,7 +778,7 @@ function FitConfiguratorContent() {
             })
           : null;
 
-      const profilePayload = {
+      const profilePayload: UpdateFitProfilePayload = {
         email: userEmail,
         label: modalData.profileName || 'New Profile',
         categoryDefaults: {
@@ -643,25 +806,7 @@ function FitConfiguratorContent() {
         },
       };
 
-      const profileResponse = await fetch('/api/fit/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profilePayload),
-      });
-
-      if (!profileResponse.ok) {
-        const errorText = await profileResponse.text();
-        throw new Error(`Failed to create fit profile: ${profileResponse.status} ${profileResponse.statusText} - ${errorText}`);
-      }
-
-      const profilePayloadResponse = (await profileResponse.json()) as {
-        ok?: boolean;
-        profile?: { id?: string };
-      };
-      const profile = profilePayloadResponse.profile;
-      if (!profile?.id) {
-        throw new Error('Fit profile response did not include an id');
-      }
+      const { profileId } = await updateFitProfile(profilePayload);
       const clientTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
       const clientLocale = Intl.DateTimeFormat().resolvedOptions().locale || 'en-US';
 
@@ -674,7 +819,7 @@ function FitConfiguratorContent() {
               trouserSize: result.trouserSize,
               appointmentDate: selectedDate,
               appointmentTime: appointmentTimeValue,
-              fitProfileId: profile.id,
+              fitProfileId: profileId,
               attributes: {
                 ...attributes,
                 onLocationAddress,
@@ -699,7 +844,23 @@ function FitConfiguratorContent() {
               optionSetVersion: activeCategorySnapshot.optionSetVersion,
               selections: activeCategorySnapshot.selections,
               designUpcharge: activeCategorySnapshot.pricing.total,
-              fitProfileId: profile.id,
+              production:
+                activeCategorySnapshot.category === 'suit'
+                  ? activeSuitHandoff?.payload.production
+                  : undefined,
+              summary:
+                activeCategorySnapshot.category === 'suit'
+                  ? activeSuitSummary
+                  : undefined,
+              handoffSource:
+                activeCategorySnapshot.category === 'suit'
+                  ? activeSuitHandoff?.payload.source
+                  : undefined,
+              handoffStorageKey:
+                activeCategorySnapshot.category === 'suit'
+                  ? activeSuitHandoff?.key
+                  : undefined,
+              fitProfileId: profileId,
               fabricId: activeCategorySnapshot.fabricId,
               fitGateVersion: activeCategorySnapshot.optionSetVersion,
               email: userEmail,
@@ -718,9 +879,9 @@ function FitConfiguratorContent() {
             })
           : null;
 
-      document.cookie = `fit_profile_id=${profile.id}; path=/; max-age=31536000`;
+      document.cookie = `fit_profile_id=${profileId}; path=/; max-age=31536000`;
 
-      const payload = {
+      const payload: UpdateBookingDetailsPayload = {
         email: userEmail,
         fitPreference: result.label,
         jacketSize: result.jacketSize,
@@ -746,29 +907,11 @@ function FitConfiguratorContent() {
           trouser: result.trouserSpecs,
         },
         cartAttributes: canonicalAfterProfile?.lineItemProperties || genericAfterProfile?.lineItemAttributes,
-        fitProfileId: profile.id,
-        bookingId: profile.id,
+        fitProfileId: profileId,
+        bookingId: profileId,
       };
 
-      const response = await fetch('/api/bookings/update-fit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const bookingError = await response.text();
-        throw new Error(`Failed to update booking: ${response.status} ${response.statusText} - ${bookingError}`);
-      }
-
-      const fitSyncResult = (await response.json().catch(() => null)) as
-        | { promotedBookingId?: string | null }
-        | null;
-
-      const promotedBookingId =
-        typeof fitSyncResult?.promotedBookingId === 'string' && fitSyncResult.promotedBookingId
-          ? fitSyncResult.promotedBookingId
-          : null;
+      const { promotedBookingId } = await updateBookingDetails(payload);
 
       const shouldAutoCreateBooking =
         searchParams.get('source') === 'fit-booking-refresh' ||
@@ -842,10 +985,9 @@ function FitConfiguratorContent() {
                   quantity: 1,
                   canonicalPayload: canonicalAfterProfile,
                 })
-              : await addMtmItemToCart({
+              : await addSuitToCartBridge({
                   variantId,
-                  quantity: 1,
-                  customAttributes: genericAfterProfile?.lineItemAttributes || {},
+                  cartAttributes: genericAfterProfile?.lineItemAttributes || {},
                 });
 
           if (cartResult.ok) {
@@ -855,7 +997,7 @@ function FitConfiguratorContent() {
               eventName: 'gjm_fit_flow_save_success',
               flowName: 'configure',
               email: userEmail,
-              fitProfileId: profile?.id,
+              fitProfileId: profileId,
               productHandle: searchParams.get('productHandle') || undefined,
               variantId,
               destination: checkoutUrl,
@@ -882,7 +1024,7 @@ function FitConfiguratorContent() {
         eventName: 'gjm_fit_flow_save_success',
         flowName: 'configure',
         email: userEmail,
-        fitProfileId: profile?.id,
+        fitProfileId: profileId,
         productHandle: searchParams.get('productHandle') || undefined,
         variantId: searchParams.get('variantId') || undefined,
         destination,
@@ -916,7 +1058,7 @@ function FitConfiguratorContent() {
         </div>
 
         <div className="p-8 md:p-12">
-          {(trouserDesignSnapshot || categoryDesignSnapshot) && (
+          {(trouserDesignSnapshot || resolvedCategoryDesignSnapshot) && (
             <div className="mb-6 rounded-xl border border-[#826300]/20 bg-[#F8F5ED] p-5">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -926,24 +1068,30 @@ function FitConfiguratorContent() {
                   <p className="text-sm text-zinc-600">
                     Source:{' '}
                     <span className="font-semibold text-zinc-800">
-                      {trouserDesignSnapshot ? trouserDesignSource : categoryDesignSource}
+                      {trouserDesignSnapshot ? trouserDesignSource : resolvedCategoryDesignSourceLabel}
                     </span>{' '}
                     · Option Set{' '}
                     <span className="font-semibold text-zinc-800">
                       {trouserDesignSnapshot
                         ? trouserDesignSnapshot.optionSetVersion
-                        : categoryDesignSnapshot?.optionSetVersion}
+                        : resolvedCategoryDesignSnapshot?.optionSetVersion}
                     </span>
                   </p>
                 </div>
                 <p className="text-xs font-semibold text-zinc-700">
                   Design Upcharge: €
-                  {(trouserDesignSnapshot?.pricing.total ?? categoryDesignSnapshot?.pricing.total ?? 0).toFixed(2)}
+                  {(trouserDesignSnapshot?.pricing.total ?? resolvedCategoryDesignSnapshot?.pricing.total ?? 0).toFixed(2)}
                 </p>
               </div>
 
+              {!trouserDesignSnapshot && activeSuitHandoff?.payload.production ? (
+                <p className="mt-2 text-xs text-zinc-700">
+                  Production: <span className="font-semibold text-zinc-900">{activeSuitHandoff.payload.production}</span>
+                </p>
+              ) : null}
+
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {Object.entries(trouserDesignSnapshot?.selections || categoryDesignSnapshot?.selections || {})
+                {Object.entries(trouserDesignSnapshot?.selections || resolvedCategoryDesignSnapshot?.selections || {})
                   .slice(0, 6)
                   .map(([key, value]) => (
                     <div key={key} className="rounded-lg bg-white px-3 py-2 text-xs text-zinc-700">
