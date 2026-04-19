@@ -2,9 +2,9 @@ export const SUIT_BLACK_LABEL_V1_OPTION_C = {
   id: 'gjm_suit_black_label_v1',
   handle: 'gjm_suit_black_label_v1',
   title: 'Suit Black Label v1',
-  category: 'suit',
+  category: /** @type {'suit'} */ ('suit'),
   version: 'v1',
-  production: 'sartoria_black_label',
+  production: /** @type {'sartoria_black_label'} */ ('sartoria_black_label'),
   includes: ['jacket', 'trouser'],
   pricingNotes: {
     sartoria_black_label: {
