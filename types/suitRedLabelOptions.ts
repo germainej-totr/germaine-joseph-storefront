@@ -116,7 +116,7 @@ export function isRuleMatch(
   return Object.entries(rule.if).every(([key, allowed]) => {
     const current = selections[key];
     if (typeof current !== 'string') return false;
-    return allowed.includes(current);
+    return allowed?.includes(current) ?? false;
   });
 }
 
