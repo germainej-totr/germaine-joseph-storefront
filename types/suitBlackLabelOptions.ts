@@ -43,7 +43,7 @@ export type MtmOption = {
 };
 
 export type SuitBlackLabelRule = {
-  if: Record<string, string>;
+  if: Partial<Record<string, string>>;
   then: {
     set?: Record<string, string>;
     disallow?: Record<string, string[]>;
