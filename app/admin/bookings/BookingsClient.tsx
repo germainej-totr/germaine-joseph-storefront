@@ -8,7 +8,7 @@ import RescheduleBookingModal, {
 } from '@/components/admin/RescheduleBookingModal';
 import { useBookingServiceTypes } from '@/hooks/useBookingServiceTypes';
 
-interface BookingRecord {
+export interface BookingRecord {
   id: string;
   email: string;
   serviceType?: string;

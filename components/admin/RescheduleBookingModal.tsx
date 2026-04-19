@@ -89,6 +89,8 @@ export default function RescheduleBookingModal({
   const serviceTypeIds = useMemo(() => catalog.map((serviceType) => serviceType.id), [catalog]);
   const slotMap = useMemo(() => toServiceTypeSlotMap(catalog), [catalog]);
   const defaultServiceType = firstServiceTypeId(catalog);
+  const formDate = form?.date;
+  const formServiceType = form?.serviceType;
 
   useEffect(() => {
     if (!isOpen || !state) {
@@ -115,12 +117,13 @@ export default function RescheduleBookingModal({
   }, [isOpen, state, slotMap, defaultServiceType, serviceTypeMap]);
 
   useEffect(() => {
-    if (!isOpen || !state || !form?.date || !form.serviceType) {
+    if (!isOpen || !state || !formDate || !formServiceType) {
       return;
     }
 
     const currentState = state;
-    const currentForm = form;
+    const selectedDate = formDate;
+    const selectedServiceType = formServiceType;
     let cancelled = false;
 
     async function loadAvailability() {
@@ -129,8 +132,8 @@ export default function RescheduleBookingModal({
       try {
         const query = new URLSearchParams({
           bookingId: currentState.bookingId,
-          date: currentForm.date,
-          serviceType: currentForm.serviceType,
+          date: selectedDate,
+          serviceType: selectedServiceType,
         });
 
         const response = await fetch(`/api/bookings/reschedule/availability?${query.toString()}`, {
@@ -190,7 +193,7 @@ export default function RescheduleBookingModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, state, form?.date, form?.serviceType, slotMap, defaultServiceType]);
+  }, [isOpen, state, formDate, formServiceType, slotMap, defaultServiceType]);
 
   useEffect(() => {
     if (!isOpen || !state) return;

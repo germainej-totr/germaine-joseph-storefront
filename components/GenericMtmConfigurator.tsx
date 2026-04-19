@@ -37,6 +37,7 @@ const SECTION_ORDER = [
   'details',
   'construction',
   'pockets',
+  'personalisation',
   'finish',
   'formal_details',
 ] as const;
@@ -46,6 +47,7 @@ const SECTION_LABELS: Record<string, string> = {
   details: 'Details',
   construction: 'Construction',
   pockets: 'Pockets',
+  personalisation: 'Personalisation',
   finish: 'Finish',
   formal_details: 'Formal Details',
 };
