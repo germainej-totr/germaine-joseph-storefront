@@ -55,7 +55,7 @@ export type ChildOptionRegistry = Record<string, ChildOption[]>;
 export type DependencyRule = {
   id: string;
   description: string;
-  if: Record<string, string[]>;
+  if: Partial<Record<string, string[]>>;
   thenShow?: string[];
   thenHide?: string[];
   thenHideFromCustomer?: string[];
