@@ -1,3 +1,5 @@
+import { SUIT_BLACK_LABEL_V1_OPTION_C } from '../scripts/data/suit-black-label-v1-option-c.mjs';
+
 export type MtmOptionType =
   | 'radio'
   | 'select'

@@ -21,7 +21,7 @@ export type MtmOption = {
   uiHint: "cards" | "buttons" | "dropdown" | "text" | "number";
   required: boolean;
   sortOrder: number;
-  section: "design" | "details" | "construction" | "pockets" | "finish" | "formal_details";
+  section: "design" | "details" | "construction" | "pockets" | "finish" | "formal_details" | "personalisation";
   dependsOn?: DependsOnRule;
   choices?: MtmChoice[];
 };

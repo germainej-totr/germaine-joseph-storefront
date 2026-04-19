@@ -11,12 +11,9 @@ import {
 /**
  * Validation result type
  */
-export interface ValidationResult<T> {
-  ok: boolean;
-  data?: T;
-  error?: string;
-  errors?: Record<string, string[]>;
-}
+export type ValidationResult<T> =
+  | { ok: true; data: T; error?: never; errors?: never }
+  | { ok: false; data?: never; error?: string; errors?: Record<string, string[]> };
 
 /**
  * Validate a canonical MTM payload against the schema

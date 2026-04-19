@@ -33,8 +33,10 @@ export async function GET(req: NextRequest, context: Context): Promise<NextRespo
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const payload = parsed.data!;
+  const payload = parsed.data;
+  if (!payload) {
+    return NextResponse.json({ error: 'Payload data missing after validation' }, { status: 422 });
+  }
 
   // Optional fabric enrichment
   const fabricCode = payload.mtmSpec?.fabricCode;
