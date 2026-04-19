@@ -7,7 +7,7 @@ export const SUIT_RED_LABEL_V1_SEED = {
     version: 'v1',
     production: /** @type {'sartoria_red_label'} */ ('sartoria_red_label'),
     namespace: 'gjm',
-    includes: ['jacket', 'trouser'],
+    includes: /** @type {['jacket', 'trouser']} */ (['jacket', 'trouser']),
   },
   topLevelGroupedOptions: [
     {
